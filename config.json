@@ -1,0 +1,35 @@
+{
+  "app_name": "AVR Test Bench Software",
+  "version": "2.0.0",
+  "site": {
+    "site_id": "SITE_001",
+    "site_name": "Main Testing Facility"
+  },
+  "reports": {
+    "default_output_dir": "D:\\AVR_TEST_REPORTS"
+  },
+  "meter": {
+    "ip": "192.168.1.1",
+    "port": 3300,
+    "timeout_ms": 3000,
+    "retry_count": 3,
+    "mock": false
+  },
+  "avr": {
+    "rated_output_voltage": 230.0
+  },
+  "parameters": {
+    "frequency": true,
+    "vin": true,
+    "iin": true,
+    "kwin": true,
+    "vout": true,
+    "iout": true,
+    "kwout": true,
+    "vthd_out": true,
+    "efficiency": true
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}

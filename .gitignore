@@ -1,0 +1,36 @@
+# ==============================
+# Python Virtual Environment
+# ==============================
+venv/
+__pycache__/
+
+# ==============================
+# Runtime / Application Outputs
+# ==============================
+logs/
+*.xlsx
+*.xls
+
+# ==============================
+# PyInstaller / Executable Build
+# ==============================
+build/
+*.spec
+
+# ==============================
+# VS Code (if used)
+# ==============================
+.vscode/
+
+.generated_files/
+dist/
+nbproject/
+Makefile*
+Package-*
+private/
+_build/
+!cmake/**/user.cmake
+cmake/**/.generated/*
+cmake/**/CMake*
+out/
+_temp.py
