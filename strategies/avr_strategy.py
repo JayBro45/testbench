@@ -80,8 +80,5 @@ class AVRStrategy(TestStrategy):
         eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
         
-        # Use the hardcoded constant from the engine
-        rated_volt = AVRAcceptanceEngine.RATED_OUTPUT_VOLTAGE
-        
-        generate_avr_excel_report(rows, eng_path, rated_volt)
+        generate_avr_excel_report(rows, eng_path)
         generate_avr_submission_excel(rows, sub_path)

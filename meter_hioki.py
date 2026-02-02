@@ -74,7 +74,7 @@ class HiokiPW3336:
         meter_cfg = config["meter"]
 
         self.ip = meter_cfg.get("ip")
-        self.port = meter_cfg.get("port")
+        self.port = meter_cfg.get("port", 5025)
         self.timeout_ms = meter_cfg.get("timeout_ms", 5000)
         self.retry_count = meter_cfg.get("retry_count", 2)
         self.mock = meter_cfg.get("mock", False)
@@ -193,7 +193,7 @@ class HiokiPW3336:
         return self.mock or self.inst is not None
 
     # ------------------------------------------------------------------
-    # Mode Configuration
+    # Mode Configuration (REQUIRED FOR UI.PY)
     # ------------------------------------------------------------------
 
     def set_mode_avr(self):
@@ -303,6 +303,8 @@ class HiokiPW3336:
     def read_current_in(self):   return self._query_float(":MEASure? I1", "iin")
     def read_power_in(self):     return abs(self._query_float(":MEASure? P1", "kwin") / 1000)
     def read_frequency(self):    return self._query_float(":MEASure? FREQU1", "frequency")
+    
+    # New Input Params for SMR (REQUIRED FOR SMR STRATEGY)
     def read_pf_in(self):        return self._query_float(":MEASure? PF1", "pf")
     def read_vthd_in(self):      return self._query_float(":MEASure? UTHD1", "vthd_in")
     def read_ithd_in(self):      return self._query_float(":MEASure? ITHD1", "ithd_in")
@@ -313,7 +315,15 @@ class HiokiPW3336:
     def read_power_out(self):    return self._query_float(":MEASure? P2", "kwout") / 1000
     def read_vthd_out(self):     return self._query_float(":MEASure? UTHD2", "vthd_out")
     def read_efficiency(self):   return self._query_float(":MEASure? EFF1", "efficiency")
-    def read_ripple(self):       return self._query_float(":MEASure? UAC, 2", "ripple")
+
+    def read_ripple(self):
+        """
+        Read Ripple Voltage (AC component on DC line).
+        Assumes Ch2 is Output.
+        """
+        if self.mock: return self._mock_read("ripple")
+        # Read AC component of Ch2 Voltage
+        return self._query_float(":MEASure? UAC2", "ripple")
 
     # ------------------------------------------------------------------
     # Bulk Read
@@ -346,7 +356,7 @@ class HiokiPW3336:
             data["frequency"] = self.read_frequency()
             data["vthd_out"] = self.read_vthd_out()
             
-            # SMR Specific
+            # SMR Specific (CRITICAL: Added missing fields)
             data["pf"] = self.read_pf_in()
             data["vthd_in"] = self.read_vthd_in()
             data["ithd_in"] = self.read_ithd_in()
