@@ -19,6 +19,7 @@ from typing import List, Dict, Tuple, Any
 from .test_strategy import TestStrategy
 from smr_acceptance_engine import SMRAcceptanceEngine
 from smr_excel_report import generate_smr_excel_report
+from smr_submission_report import generate_smr_submission_excel
 
 class SMRStrategy(TestStrategy):
     """
@@ -78,6 +79,11 @@ class SMRStrategy(TestStrategy):
     def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> None:
         """
         Generates SMR-specific Excel reports.
+        1. Result Report (Engineering/Validation)
+        2. Submission Report (Clean)
         """
-        report_path = os.path.join(output_dir, f"{prefix}_SMR_REPORT.xlsx")
-        generate_smr_excel_report(rows, report_path)
+        res_path = os.path.join(output_dir, f"{prefix}_SMR_RESULT.xlsx")
+        sub_path = os.path.join(output_dir, f"{prefix}_SMR_SUBMISSION.xlsx")
+        
+        generate_smr_excel_report(rows, res_path)
+        generate_smr_submission_excel(rows, sub_path)

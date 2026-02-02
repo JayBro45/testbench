@@ -2,100 +2,184 @@
 smr_excel_report.py
 ===================
 
-Excel Report Generator for SMR Tests.
+SMR Excel Report Generator (Legacy-Compatible)
 
-This module handles the creation of the final Excel file for SMR tests.
-It separates raw data (Submission Sheet) from analyzed data (Result Sheet).
+This module generates the **Engineering / Acceptance Excel report**
+for SMR testing using the legacy acceptance logic and color conventions.
 
-Features
---------
-- **Two Sheets:** 'Submission' (Clean) and 'Result' (Highlighted).
-- **Conditional Formatting:** Cells failing RDSO criteria are colored Red.
-- **Summary Section:** Appends the pass/fail summary from the engine.
+Responsibilities
+----------------
+- Convert UI grid data into an Excel worksheet
+- Invoke SMRAcceptanceEngine for PASS / FAIL evaluation
+- Apply legacy conditional formatting:
+    • Red    → FAIL
+    • Amber  → PASS but ABNORMAL
+    • Green  → PASS
+- Append a merged summary block at the bottom of the sheet
+
+Strict Guarantees
+-----------------
+- Acceptance logic is NOT implemented here
+- Column order, names, and layout are preserved
+- No Excel formatting changes beyond legacy behavior
+
+Dependencies
+------------
+- smr_acceptance_engine.SMRAcceptanceEngine
 """
 
-import pandas as pd
 from typing import List, Dict, Any
+
+import pandas as pd
+from xlsxwriter.utility import xl_col_to_name
+
 from smr_acceptance_engine import SMRAcceptanceEngine
 
-def generate_smr_excel_report(rows: List[Dict[str, Any]], output_path: str) -> None:
+
+# =============================================================================
+# Legacy Color Codes (DO NOT MODIFY)
+# =============================================================================
+
+COLOR_PASS = "#90ee90"      # Green
+COLOR_FAIL = "#FFCCCB"      # Red
+COLOR_ABNORMAL = "#FFBF00"  # Amber
+
+
+# =============================================================================
+# Public API
+# =============================================================================
+
+def generate_smr_excel_report(
+    grid_rows: List[Dict[str, Any]],
+    output_path: str
+) -> None:
     """
-    Creates an Excel file with SMR test results.
-    
+    Generate the SMR Engineering / Acceptance Excel report.
+
     Parameters
     ----------
-    rows : List[Dict[str, Any]]
-        The raw data rows from the UI grid.
+    grid_rows : List[Dict[str, Any]]
+        Final grid rows captured from the UI.
+
     output_path : str
-        The full file path where the report will be saved.
+        Full filesystem path where the Excel file will be written.
     """
-    
-    # 1. Run Engine to get Pass/Fail context
-    engine = SMRAcceptanceEngine(rows)
+
+    # -------------------------------------------------------------------------
+    # Run Acceptance Engine
+    # -------------------------------------------------------------------------
+    # We must evaluate the RAW rows. Converting to DataFrame/numeric first
+    # might alter data strings, breaking the engine's exclusion logic.
+    engine = SMRAcceptanceEngine(grid_rows)
     result = engine.evaluate()
-    
-    # 2. Prepare Dataframe
-    df = pd.DataFrame(rows)
-    
-    # Numeric conversion for Excel formatting
-    numeric_cols = [
-        'V (in)', 'I (in)', 'P (in)', 'PF (in)', 
-        'Vthd % (in)', 'Ithd % (in)', 
-        'V (out)', 'I (out)', 'P (out)', 
-        'Ripple (out)', 'Efficiency'
-    ]
-    for c in numeric_cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors='coerce')
 
-    # 3. Create Excel Writer
+    # -------------------------------------------------------------------------
+    # Convert Grid → DataFrame (For Excel Output)
+    # -------------------------------------------------------------------------
+    df = pd.DataFrame(grid_rows)
+
+    # Enforce numeric conversion for the Excel file itself (legacy behavior)
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # -------------------------------------------------------------------------
+    # Write Excel
+    # -------------------------------------------------------------------------
     with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-        workbook = writer.book
-        
-        # --- FORMATS ---
-        header_fmt = workbook.add_format({
-            "bold": True, "bg_color": "#DDEBF7", "border": 1, "align": "center"
-        })
-        cell_fmt = workbook.add_format({"border": 1, "align": "center"})
-        fail_fmt = workbook.add_format({"bg_color": "#FFC7CE", "font_color": "#9C0006", "border": 1})
-        
-        # --- SHEET 1: SUBMISSION (Clean) ---
-        df.to_excel(writer, sheet_name="Submission", index=False)
-        ws_sub = writer.sheets["Submission"]
-        _apply_formatting(ws_sub, df, header_fmt)
-
-        # --- SHEET 2: RESULT (Validation) ---
         df.to_excel(writer, sheet_name="Result", index=False)
-        ws_res = writer.sheets["Result"]
-        _apply_formatting(ws_res, df, header_fmt)
-        
-        # Apply Conditional Formatting based on Invalid Cells
+
+        workbook = writer.book
+        worksheet = writer.sheets["Result"]
+
+        # ---------------------------------------------------------------------
+        # Formats (legacy semantics)
+        # ---------------------------------------------------------------------
+        fmt_fail = workbook.add_format({"bg_color": COLOR_FAIL})
+        fmt_abnormal = workbook.add_format({"bg_color": COLOR_ABNORMAL})
+        # fmt_pass is defined but implicitly used by default or summary
+        fmt_pass = workbook.add_format({"bg_color": COLOR_PASS}) 
+
+        fmt_summary_pass = workbook.add_format({
+            "bg_color": COLOR_PASS,
+            "text_wrap": True,
+            "bold": True
+        })
+
+        fmt_summary_fail = workbook.add_format({
+            "bg_color": COLOR_FAIL,
+            "text_wrap": True,
+            "bold": True
+        })
+
+        # ---------------------------------------------------------------------
+        # Apply FAIL (Red) Cells
+        # ---------------------------------------------------------------------
         for col_name, row_ids in result.invalid_cells.items():
-            if not row_ids: continue
-            
-            # Find column index
-            if col_name not in df.columns: continue
+            if not row_ids:
+                continue
+
+            # Ensure column exists in DF (safety check)
+            if col_name not in df.columns:
+                continue
+
             col_idx = df.columns.get_loc(col_name)
-            
-            # Highlight Cells
-            for row_id_str in row_ids:
-                # Excel Row = int(row_id) - 1 (0-based)
-                # But our row_ids are 1-based header+data style (e.g., "2" is first data row)
-                try:
-                    r_idx = int(row_id_str) - 2 
-                    if 0 <= r_idx < len(df):
-                        ws_res.write(r_idx + 1, col_idx, df.iloc[r_idx][col_name], fail_fmt)
-                except ValueError:
-                    pass
+            col_letter = xl_col_to_name(col_idx)
 
-        # Write Summary
-        summary_row = len(df) + 2
-        ws_res.write(summary_row, 0, "Evaluation Summary:", header_fmt)
-        ws_res.merge_range(summary_row + 1, 0, summary_row + 10, 5, result.summary, cell_fmt)
+            for row_id in row_ids:
+                # Applies conditional format to the entire column based on the value
+                # of the specific failing cell (Legacy AVR Logic)
+                worksheet.conditional_format(
+                    f"{col_letter}1:{col_letter}{len(df) + 1}",
+                    {
+                        "type": "cell",
+                        "criteria": "equal to",
+                        "value": f'${col_letter}${row_id}',
+                        "format": fmt_fail,
+                    },
+                )
 
+        # ---------------------------------------------------------------------
+        # Apply ABNORMAL (Amber) Cells
+        # ---------------------------------------------------------------------
+        # safely retrieve abnormal_cells in case SMR engine does not implement it yet
+        abnormal_cells = getattr(result, "abnormal_cells", {})
+        
+        for col_name, row_ids in abnormal_cells.items():
+            if not row_ids:
+                continue
 
-def _apply_formatting(worksheet, df, header_fmt):
-    """Helper to apply basic grid styling."""
-    for col_num, value in enumerate(df.columns.values):
-        worksheet.write(0, col_num, value, header_fmt)
-        worksheet.set_column(col_num, col_num, 15)
+            if col_name not in df.columns:
+                continue
+
+            col_idx = df.columns.get_loc(col_name)
+            col_letter = xl_col_to_name(col_idx)
+
+            for row_id in row_ids:
+                worksheet.conditional_format(
+                    f"{col_letter}1:{col_letter}{len(df) + 1}",
+                    {
+                        "type": "cell",
+                        "criteria": "equal to",
+                        "value": f'${col_letter}${row_id}',
+                        "format": fmt_abnormal,
+                    },
+                )
+
+        # ---------------------------------------------------------------------
+        # Summary Block (Merged, Legacy Behavior)
+        # ---------------------------------------------------------------------
+        start_row = len(df) + 2
+        summary_lines = result.summary.count("\n") + 1
+
+        summary_format = (
+            fmt_summary_pass if result.passed else fmt_summary_fail
+        )
+
+        worksheet.merge_range(
+            start_row,
+            0,
+            start_row + summary_lines,
+            len(df.columns) - 1,
+            result.summary,
+            summary_format,
+        )
