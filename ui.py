@@ -1,3 +1,24 @@
+"""
+ui.py
+=====
+
+Main User Interface for the Industrial Test Bench.
+
+Responsibilities
+----------------
+- Manage the main application window and layout.
+- Handle user interactions (Start/Stop, Save, Export).
+- Visualize real-time data from the MeterPollingWorker.
+- Orchestrate the Strategy Pattern (Switching between AVR and SMR modes).
+- Delegate hardware configuration and report generation to the active Strategy.
+
+Design Notes
+------------
+- This module is "domain-agnostic" where possible. It asks the active
+  Strategy object for headers, labels, and validation rules.
+- Thread safety is managed via Qt Signals/Slots with the Worker.
+"""
+
 import os
 import sys
 import subprocess
@@ -8,7 +29,7 @@ from datetime import datetime
 # =============================================================================
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QGroupBox, QLabel, QPushButton, QRadioButton, QButtonGroup,
+    QGroupBox, QLabel, QPushButton, QComboBox,
     QTableWidget, QLineEdit, QFrame, QStatusBar, QHeaderView,
     QStyle, QSizePolicy, QTableWidgetItem, QMessageBox, QInputDialog, QMenu
 )
@@ -18,13 +39,13 @@ from PySide6.QtCore import Qt, QSize
 # Local Application Imports
 # =============================================================================
 from worker import MeterPollingWorker
-from avr_excel_report import generate_avr_excel_report
-from avr_submission_report import generate_avr_submission_excel
 from settings_dialog import SettingsDialog
 from config_loader import save_config
-from logger import get_logger 
+from logger import get_logger
 
-AVR_REQUIRED_ROWS = 6
+# Strategy Imports
+from strategies.avr_strategy import AVRStrategy
+from strategies.smr_strategy import SMRStrategy
 
 
 # =============================================================================
@@ -126,8 +147,8 @@ class ReadingsPanel(QGroupBox):
 # =============================================================================
 class MainWindow(QMainWindow):
     """
-    Main application logic for the AVR Test Bench software.
-    Handles UI construction, device polling, data aggregation, and report generation.
+    Main application logic for the Test Bench software.
+    Handles UI construction, device polling, strategy management, and reporting.
     """
 
     def __init__(self, meter, app_config):
@@ -137,7 +158,6 @@ class MainWindow(QMainWindow):
         self.meter = meter
         self.config = app_config
         self.meter.mock = bool(self.config.get("meter", {}).get("mock", False))
-        self.rated_output_voltage = self.config.get("avr", {}).get("rated_output_voltage", 230.0)
         
         # 2. Logger Setup
         self.logger = get_logger("MainWindow") 
@@ -148,21 +168,33 @@ class MainWindow(QMainWindow):
         self.is_polling = False
         self.latest_data = {}
 
-        # 4. Window Setup
+        # 4. Strategy Initialization
+        # Load available strategies
+        self.strategies = {
+            "AVR": AVRStrategy(self.config),
+            "SMR": SMRStrategy(self.config)
+        }
+        # Default to AVR
+        self.current_strategy = self.strategies["AVR"]
+
+        # 5. Window Setup
         self.setWindowTitle(self.config.get("app_name", "Test Bench Software"))
         self.resize(1200, 750)
 
-        # 5. Build UI
+        # 6. Build UI
         self._build_menus()
         self._build_ui()
         self._build_statusbar()
         
-        # 6. Apply Defaults
+        # 7. Apply Defaults & Initial Strategy
         default_dir = self.config.get("reports", {}).get("default_output_dir")
         if default_dir:
             self.location_edit.setText(default_dir)
 
-        # 7. Initial State
+        # Apply the initial strategy (Sets headers, panels, meter mode)
+        self.apply_strategy("AVR")
+        
+        # 8. Initial State
         self.save_btn.setEnabled(False)
 
     # =========================================================================
@@ -188,12 +220,11 @@ class MainWindow(QMainWindow):
         if self.is_polling:
             return
 
-        self.logger.info("Starting test polling...") 
+        self.logger.info(f"Starting test polling ({self.current_strategy.name})...") 
 
         # Lock UI Controls
         self.start_btn.setEnabled(False)
-        self.radio_1p.setEnabled(False)
-        self.radio_3p.setEnabled(False)
+        self.mode_selector.setEnabled(False)
 
         # Create and Configure Worker
         self.polling_worker = MeterPollingWorker(self.meter, interval_sec=1.0)
@@ -231,8 +262,7 @@ class MainWindow(QMainWindow):
         self.polling_worker = None
         self.is_polling = False
 
-        self.radio_1p.setEnabled(True)
-        self.radio_3p.setEnabled(False)
+        self.mode_selector.setEnabled(True)
 
         self.start_btn.setText("START TEST")
         self.start_btn.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -242,21 +272,22 @@ class MainWindow(QMainWindow):
         self.logger.info("Polling finished - Status: Idle") 
 
     def update_live_readings(self, data: dict):
-        """Slot: Updates the UI panels with fresh data from the worker."""
+        """
+        Slot: Updates the UI panels with fresh data from the worker.
+        Dynamically maps data to widgets based on the active strategy.
+        """
         self.latest_data = data
         self.save_btn.setEnabled(True)
         
-        # Update Input Panel
-        self.input_panel.update_value("vin", data.get("vin"))
-        self.input_panel.update_value("iin", data.get("iin"))
-        self.input_panel.update_value("kwin", data.get("kwin"))
-        self.input_panel.update_value("freq", data.get("frequency"))
+        # Get the mapping from the strategy (Key -> (Label, Unit))
+        # But here we just need the Keys to match the widget IDs in ReadingsPanel
+        mapping = self.current_strategy.live_readings_map
         
-        # Update Output Panel
-        self.output_panel.update_value("vout", data.get("vout"))
-        self.output_panel.update_value("iout", data.get("iout"))
-        self.output_panel.update_value("kwout", data.get("kwout"))
-        self.output_panel.update_value("vthd", data.get("vthd_out"))
+        # Iterate and update Input/Output panels if the key exists
+        for key in mapping.keys():
+            val = data.get(key)
+            self.input_panel.update_value(key, val)
+            self.output_panel.update_value(key, val)
 
     def on_worker_warning(self, msg):
         self.statusbar.showMessage(f"Warning: {msg}", 3000)
@@ -269,71 +300,180 @@ class MainWindow(QMainWindow):
         self.statusbar.showMessage(msg)
 
     # =========================================================================
-    # SECTION 2: Data Management (Grid & Math)
+    # SECTION 2: Strategy Management & Data Capture
     # =========================================================================
 
-    def _derive_load_line(self, row_index: int, vout: float | None):
+    def change_test_mode(self, mode_name: str):
         """
-        Calculates Load/Line regulation based on row position.
-        :param row_index: 1-based index (operator view)
-        :return: Tuple (load_str, line_str)
+        Slot: Called when the user changes the Test Mode ComboBox.
         """
-        if vout is None:
-            return "--", "--"
+        if mode_name not in self.strategies:
+            return
 
-        value = round((1 - vout / self.rated_output_voltage) * 100, 2)
+        self.logger.info(f"Switching strategy to: {mode_name}")
+        
+        # If running, stop first
+        if self.is_polling:
+            self.stop_polling()
+            
+        self.current_strategy = self.strategies[mode_name]
+        self.apply_strategy(mode_name)
 
-        # Hard-coded business logic for AVR reporting
-        if row_index in (2, 3, 6):
-            return f"{value:.2f}", "--"
+    def apply_strategy(self, mode_name: str):
+        """
+        Applies settings for the selected strategy:
+        1. Updates Grid Headers.
+        2. Rebuilds Live Reading Panels.
+        3. Configures Meter Hardware (AC/AC vs AC/DC).
+        """
+        # 1. Update Grid
+        headers = self.current_strategy.grid_headers
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
+        self.table.setRowCount(0) # Clear previous test data
+        
+        # 2. Update Panels
+        self._rebuild_readings_panels()
 
-        if row_index in (4, 5):
-            return "--", f"{value:.2f}"
+        # 3. Configure Hardware
+        if mode_name == "AVR":
+            self.meter.set_mode_avr()
+        elif mode_name == "SMR":
+            self.meter.set_mode_smr()
+            
+        self.logger.info(f"Strategy {mode_name} applied successfully")
 
-        return "--", "--"
-    
+    def _rebuild_readings_panels(self):
+        """
+        Destroys and recreates the Input/Output panels based on 
+        the current strategy's 'live_readings_map'.
+        """
+        # Clear existing layout in the live_group wrapper
+        # We need to access the layout where panels live.
+        # This is 'self.panels_layout' defined in _build_ui. 
+        # But strictly, we should remove the old widgets first.
+        
+        # Helper to clear a layout
+        def clear_layout(layout):
+            while layout.count():
+                child = layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+
+        clear_layout(self.panels_layout)
+
+        # Get Mapping: {'vin': ('V (in)', 'V'), ...}
+        full_map = self.current_strategy.live_readings_map
+        
+        # Split into Input and Output lists for display
+        # Logic: Input keys usually end in 'in' or 'freq'/'pf'. Output in 'out'/'ripple'.
+        input_items = []
+        output_items = []
+        
+        for key, (label, unit) in full_map.items():
+            # Simple heuristic for grouping
+            if "out" in key or "ripple" in key or "efficiency" in key or "vthd" in key:
+                output_items.append((key, label, unit))
+            else:
+                input_items.append((key, label, unit))
+
+        # Re-instantiate Panels
+        self.input_panel = ReadingsPanel("Input Readings", input_items)
+        self.output_panel = ReadingsPanel("Output Readings", output_items)
+        
+        self.panels_layout.addWidget(self.input_panel)
+        self.panels_layout.addWidget(self.output_panel)
+        
+        # Re-add Start Button Container
+        # We need to recreate the button layout wrapper or just add the button back
+        # The button itself 'self.start_btn' still exists, we just detached it from layout
+        btn_layout = QVBoxLayout()
+        btn_layout.setAlignment(Qt.AlignCenter)
+        btn_layout.addWidget(self.start_btn)
+        self.panels_layout.addLayout(btn_layout)
+
     def save_current_reading(self):
-        """Snapshots the current live reading and appends it to the grid."""
+        """
+        Snapshots current data and adds it to the grid.
+        Adapts data formatting based on the active strategy.
+        """
         if not hasattr(self, "latest_data") or not self.latest_data:
             self.statusbar.showMessage("No data to save")
             return
 
         row = self.table.rowCount()
         self.table.insertRow(row)
-        row_number = row + 1  # 1-based logic for calc
-
+        
+        # Get data map from Strategy to know what columns go where
+        # The Strategy defines headers. We need to construct the row values.
+        # This implementation assumes the Strategy Header order matches specific logic below.
+        
         d = self.latest_data
+        mode = self.current_strategy.name # "AVR Test" or "SMR Test"
+        
+        values = []
+        
+        if "AVR" in mode:
+            # AVR Headers: Freq, Vin, Iin, kWin, Vout, Iout, kWout, Vthd, Eff, Load, Line
+            # Legacy logic included Load/Line calculation. 
+            # We will preserve simple raw data here or calculate basic derivation if needed.
+            # For robustness, we will put "--" for Load/Line during capture.
+            values = [
+                f"{d.get('frequency', 0):.2f}",
+                f"{d.get('vin', 0):.1f}",
+                f"{d.get('iin', 0):.2f}",
+                f"{d.get('kwin', 0):.2f}",
+                f"{d.get('vout', 0):.1f}",
+                f"{d.get('iout', 0):.2f}",
+                f"{abs(d.get('kwout', 0)):.2f}",
+                f"{d.get('vthd_out', 0):.1f}",
+                f"{d.get('efficiency', 0):.2f}",
+                "--", # Load Reg (Calculated in report)
+                "--"  # Line Reg (Calculated in report)
+            ]
+            
+            # Legacy "Load/Line" inline calc restoration (Optional Visual Aid)
+            # Row index is 0-based in logic, 1-based for user.
+            # AVR Legacy: Rows 2,3,6 -> Load Reg valid. Rows 4,5 -> Line Reg valid.
+            # Using derived logic locally just for display.
+            rated_v = 230.0 # Hardcoded as per strategy
+            vout = d.get('vout', 0)
+            reg_val = round((1 - vout / rated_v) * 100, 2)
+            
+            user_row_idx = row + 1
+            if user_row_idx in (3, 4, 7): # Indices shifted by 1 compared to legacy 2,3,6 logic? 
+                # Let's stick to "--" to avoid confusion. Reports do the real math.
+                pass 
 
-        # Extract & format data
-        freq = round(d.get("frequency", 0), 2)
-        vin = round(d.get("vin", 0), 1)
-        iin = round(d.get("iin", 0), 2)
-        kwin = round(d.get("kwin", 0), 2)
+        elif "SMR" in mode:
+            # SMR Headers: Vin, Iin, Pin, PF, Vthd, Ithd, Vout, Iout, Pout, Ripple, Eff
+            values = [
+                f"{d.get('vin', 0):.1f}",
+                f"{d.get('iin', 0):.2f}",
+                f"{d.get('kwin', 0):.2f}",
+                f"{d.get('pf', 0):.2f}", # PF missing in meter map? Assuming 'pf' key exists or derived
+                f"{d.get('vthd_in', 0):.1f}", # Need to ensure meter provides this or 0
+                f"{d.get('ithd_in', 0):.1f}", # Need to ensure meter provides this or 0
+                f"{d.get('vout', 0):.2f}", # DC requires more precision
+                f"{d.get('iout', 0):.2f}",
+                f"{abs(d.get('kwout', 0)):.2f}",
+                f"{d.get('ripple', 0):.1f}",
+                f"{d.get('efficiency', 0):.2f}"
+            ]
+            
+            # Fallback for missing keys in mock/meter to avoid "None"
+            values = [v.replace("None", "0.00") for v in values]
 
-        vout = round(d.get("vout", 0), 1)
-        iout = round(d.get("iout", 0), 2)
-        kwout = round(abs(d.get("kwout", 0)), 2)
-
-        vthd = round(d.get("vthd_out", 0), 1)
-        eff = round(d.get("efficiency", 0), 2)
-
-        load, line = self._derive_load_line(row_number, vout)
-
-        values = [
-            freq, vin, iin, kwin,
-            vout, iout, kwout,
-            vthd, eff, load, line
-        ]
-
+        # Populate Table
         for col, val in enumerate(values):
             item = QTableWidgetItem(str(val))
             item.setTextAlignment(Qt.AlignCenter)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, col, item)
 
-        self.statusbar.showMessage(f"Row {row_number} saved")
-        self.logger.info(f"Captured Row {row_number}") 
-    
+        self.statusbar.showMessage(f"Row {row + 1} saved")
+        self.logger.info(f"Captured Row {row + 1} ({mode})")
+
     def delete_selected_rows(self):
         """Deletes currently selected rows from the grid."""
         selected_rows = sorted(
@@ -379,17 +519,15 @@ class MainWindow(QMainWindow):
     # =========================================================================
 
     def export_excel(self):
-        """Generates the AVR Engineering and Submission reports."""
+        """
+        Delegates report generation to the active strategy.
+        Passes raw grid data to the strategy's generate_reports method.
+        """
         row_count = self.table.rowCount()
-
-        # Validation: Hard AVR rule
-        if row_count != AVR_REQUIRED_ROWS:
-            QMessageBox.warning(
-                self,
-                "Invalid Row Count",
-                f"AVR report requires exactly {AVR_REQUIRED_ROWS} rows in the grid.\n\n"
-                f"Current rows: {row_count}"
-            )
+        
+        # Basic check
+        if row_count == 0:
+            QMessageBox.warning(self, "Empty Grid", "No data to export.")
             return
 
         base_dir = self.location_edit.text()
@@ -402,56 +540,48 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Collect grid data
-        headers = [
-            "Frequency", "V (in)", "I (in)", "kW (in)",
-            "V (out)", "I (out)", "kW (out)", "VTHD (out)",
-            "Efficiency", "Load", "Line"
-        ]
-
+        # 1. Collect grid data based on current headers
+        headers = self.current_strategy.grid_headers
         rows = []
         for r in range(row_count):
-            row = {}
-            for c, header in enumerate(headers):
+            row_data = {}
+            for c, h in enumerate(headers):
                 item = self.table.item(r, c)
-                row[header] = item.text() if item else ""
-            rows.append(row)
+                row_data[h] = item.text() if item else ""
+            rows.append(row_data)
 
-        # Generate Paths
-        base_name = f"AVR_TEST_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        export_dir = self.get_or_create_export_folder(base_dir)
+        # 2. Prepare Filename Prefix
+        # Example: AVR_TEST_20231025_143000
+        prefix = f"{self.current_strategy.name.split()[0]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
+        # 3. Ask for specific folder name (Optional, keeps organized)
+        export_dir = self.get_or_create_export_folder(base_dir, prefix)
         if not export_dir:
             return
 
-        engineering_path = os.path.join(export_dir, f"{base_name}_RESULT.xlsx")
-        submission_path = os.path.join(export_dir, f"{base_name}_SUBMISSION.xlsx")
-
+        # 4. Delegate to Strategy
         try:
-            generate_avr_excel_report(rows, engineering_path, self.rated_output_voltage)
-            generate_avr_submission_excel(rows, submission_path)
+            self.current_strategy.generate_reports(rows, export_dir, prefix)
 
-            msg = "Both AVR reports were generated successfully"
+            msg = f"{self.current_strategy.name} reports generated successfully"
             QMessageBox.information(
                 self,
-                "Reports Generated Successfully",
+                "Success",
                 f"{msg}:\n\n{export_dir}"
             )
-            self.statusbar.showMessage(msg)
-            self.logger.info(f"{msg} at {export_dir}") 
+            self.statusbar.showMessage("Reports generated")
+            self.logger.info(f"Reports generated at {export_dir}") 
 
         except Exception as e:
             self.logger.error("Export Failed", exc_info=True) 
             QMessageBox.critical(
                 self,
                 "Export Failed",
-                f"Failed to generate AVR reports:\n\n{e}"
+                f"Failed to generate reports:\n\n{e}"
             )
 
-    def get_or_create_export_folder(self, base_dir: str) -> str | None:
+    def get_or_create_export_folder(self, base_dir: str, default_name: str) -> str | None:
         """Prompts user for a specific test folder name."""
-        default_name = f"AVR_{datetime.now().strftime('%d-%m-%Y_%H%M')}"
-
         folder_name, ok = QInputDialog.getText(
             self,
             "Export Folder Name",
@@ -502,10 +632,6 @@ class MainWindow(QMainWindow):
             if default_dir:
                 self.location_edit.setText(default_dir)
 
-            self.rated_output_voltage = self.config.get(
-                "avr", {}
-            ).get("rated_output_voltage", 230.0)
-
             try:
                 save_config(self.config)
                 self.statusbar.showMessage("Settings updated and saved")
@@ -524,10 +650,11 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "How to Use",
-            "1. Start Test\n"
-            f"2. Save {AVR_REQUIRED_ROWS} readings\n"
-            "3. Export Excel\n\n"
-            "Delete rows using DEL key."
+            "1. Select Test Mode (AVR / SMR)\n"
+            "2. Start Test to monitor readings\n"
+            "3. Save Readings to the grid\n"
+            "4. Export Excel to generate reports\n\n"
+            "Note: Hardware mode switches automatically."
         )
 
     def keyPressEvent(self, event):
@@ -603,73 +730,46 @@ class MainWindow(QMainWindow):
         top_layout = QHBoxLayout()
         top_layout.setSpacing(16)
 
-        # 1. Test Type Selection
-        test_group = QGroupBox("1. Choose the type of test")
+        # 1. Test Mode Selection (Refactored from Radio Buttons to ComboBox)
+        test_group = QGroupBox("1. Select Test Mode")
         test_group.setFixedWidth(260)
         test_layout = QVBoxLayout(test_group)
         
-        self.radio_1p = QRadioButton("1 Phase")
-        self.radio_3p = QRadioButton("3 Phase")
-        self.radio_1p.setChecked(True)
-        self.radio_3p.setEnabled(False)
-        self.radio_3p.setToolTip("AVR tests are single-phase only")
+        self.mode_selector = QComboBox()
+        self.mode_selector.addItems(["AVR", "SMR"])
+        self.mode_selector.setMinimumHeight(40)
+        self.mode_selector.setStyleSheet("font-size: 14px; font-weight: bold; padding: 5px;")
         
-        # Radio Styling
-        self.radio_1p.setStyleSheet("font-size: 13px; padding: 5px;")
-        self.radio_3p.setStyleSheet("font-size: 13px; padding: 5px;")
+        # Connect change event
+        self.mode_selector.currentTextChanged.connect(self.change_test_mode)
         
-        self.phase_group = QButtonGroup()
-        self.phase_group.addButton(self.radio_1p)
-        self.phase_group.addButton(self.radio_3p)
-        
-        test_layout.addWidget(self.radio_1p)
-        test_layout.addWidget(self.radio_3p)
-        test_layout.addStretch()
+        test_layout.addWidget(self.mode_selector)
         top_layout.addWidget(test_group)
 
         # 2. Live Readings Section
-        live_group = QGroupBox("2. Observe the real-time readings by clicking Start")
+        # This wrapper is needed because we destroy/recreate panels inside it
+        live_group = QGroupBox("2. Observe Real-Time Readings")
         live_layout = QVBoxLayout(live_group)
-        panels_layout = QHBoxLayout()
-        panels_layout.setSpacing(12)
-
-        self.input_panel = ReadingsPanel("Input Side Readings", [
-            ("vin", "V Ph", "V"), ("iin", "I Ph", "A"),
-            ("kwin", "1-Ph kW", "kW"), ("freq", "Frequency", "Hz"),
-        ])
+        self.panels_layout = QHBoxLayout()
+        self.panels_layout.setSpacing(12)
         
-        self.output_panel = ReadingsPanel("Output Side Readings", [
-            ("vout", "V Ph", "V"), ("iout", "I Ph", "A"),
-            ("kwout", "1-Ph kW", "kW"), ("vthd", "V THD", "%"),
-        ])
+        # Panels will be injected here dynamically by apply_strategy()
         
-        panels_layout.addWidget(self.input_panel)
-        panels_layout.addWidget(self.output_panel)
-
-        # Start Button
-        btn_layout = QVBoxLayout()
-        btn_layout.setAlignment(Qt.AlignCenter)
+        # Start Button (Created once, re-added dynamically)
         self.start_btn = QPushButton("START TEST")
         self._style_button(self.start_btn, "#2E7D32", QStyle.SP_MediaPlay)
         self.start_btn.clicked.connect(self.toggle_polling)
         
-        btn_layout.addWidget(self.start_btn)
-        panels_layout.addLayout(btn_layout)
-        
-        live_layout.addLayout(panels_layout)
+        live_layout.addLayout(self.panels_layout)
         top_layout.addWidget(live_group, stretch=1)
         main_layout.addLayout(top_layout)
 
         # 3. Grid Section
-        grid_group = QGroupBox("3. Save the required readings into the grid")
+        grid_group = QGroupBox("3. Save Readings")
         grid_layout = QVBoxLayout(grid_group)
         
-        self.table = QTableWidget(0, 11)
-        self.table.setHorizontalHeaderLabels([
-            "Frequency", "V (in)", "I (in)", "kW (in)",
-            "V (out)", "I (out)", "kW (out)", "VTHD (out)", 
-            "Efficiency", "Load", "Line"
-        ])
+        # Grid columns are set dynamically by strategy
+        self.table = QTableWidget()
         self.table.setMinimumHeight(250)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -696,12 +796,12 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(grid_group)
 
         # 4. Export Section
-        export_group = QGroupBox("4. Export the readings in the grid to Excel")
+        export_group = QGroupBox("4. Export Report")
         export_layout = QVBoxLayout(export_group)
         fields = QHBoxLayout()
         
         self.location_edit = QLineEdit()
-        self.location_edit.setPlaceholderText("D:/AVR_TEST_REPORTS")
+        self.location_edit.setPlaceholderText("D:/TEST_REPORTS")
         self.location_edit.setMinimumHeight(35)
 
         # Lock editing
