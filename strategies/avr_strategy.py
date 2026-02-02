@@ -4,9 +4,15 @@ strategies/avr_strategy.py
 
 Strategy implementation for AVR (Automatic Voltage Regulator) testing.
 
-This module acts as the glue between the generic UI and the specific 
-AVR acceptance logic and reporting tools. It defines the specific 
-columns, hardware mappings, and validation rules for AVRs.
+This module acts as the bridge between the generic UI and the specific 
+AVR acceptance logic and reporting tools.
+
+Key Responsibilities
+--------------------
+- Defining the Grid Columns for AVR tests
+- Mapping Meter AC parameters to UI labels
+- Invoking the AVRAcceptanceEngine
+- Triggering AVR-specific Excel reports
 """
 
 import os
@@ -20,13 +26,9 @@ class AVRStrategy(TestStrategy):
     """
     Concrete strategy for performing AVR tests.
     
-    Configuration:
-    - Rated Output Voltage is HARDCODED to 230.0V (Industrial Standard)
-    - Output is AC (Single Phase)
+    This class configures the test bench for Single Phase AC testing.
+    It relies on AVRAcceptanceEngine for all validation rules.
     """
-
-    # HARDCODED CONSTANT - Decoupled from config.json for security
-    RATED_OUTPUT_VOLTAGE = 230.0
 
     @property
     def name(self) -> str:
@@ -63,7 +65,7 @@ class AVRStrategy(TestStrategy):
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
         """
-        Delegates validation to the existing AVRAcceptanceEngine.
+        Delegates validation to the AVRAcceptanceEngine.
         """
         engine = AVRAcceptanceEngine(rows)
         return engine.evaluate()
@@ -71,10 +73,15 @@ class AVRStrategy(TestStrategy):
     def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> None:
         """
         Generates the legacy AVR Excel reports.
+        
+        The rated output voltage is fetched directly from the Acceptance Engine class
+        to ensure a single source of truth.
         """
         eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
         
-        # Pass the hardcoded rated voltage explicitly to the report generator
-        generate_avr_excel_report(rows, eng_path, self.RATED_OUTPUT_VOLTAGE)
+        # Use the hardcoded constant from the engine
+        rated_volt = AVRAcceptanceEngine.RATED_OUTPUT_VOLTAGE
+        
+        generate_avr_excel_report(rows, eng_path, rated_volt)
         generate_avr_submission_excel(rows, sub_path)

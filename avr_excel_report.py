@@ -52,8 +52,7 @@ COLOR_ABNORMAL = "#FFBF00"  # Amber
 
 def generate_avr_excel_report(
     grid_rows: List[Dict[str, float | str]],
-    output_path: str,
-    rated_voltage: float = 230.0
+    output_path: str
 ) -> None:
     """
     Generate the AVR Engineering / Acceptance Excel report.
@@ -84,7 +83,7 @@ def generate_avr_excel_report(
     # -------------------------------------------------------------------------
     # We must evaluate the RAW rows. Converting to DataFrame/numeric first
     # would turn "--" strings into NaN, breaking the engine's exclusion logic.
-    engine = AVRAcceptanceEngine(grid_rows, nominal_voltage=rated_voltage)
+    engine = AVRAcceptanceEngine(grid_rows)
     result = engine.evaluate()
 
     # -------------------------------------------------------------------------

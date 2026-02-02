@@ -34,6 +34,8 @@ from typing import List, Dict, Tuple
 # Legacy Constants (DO NOT MODIFY)
 # =============================================================================
 
+RATED_OUTPUT_VOLTAGE = 230.0
+
 # Output voltage THD limit (%)
 UNIDIR_VTHD_LIMIT = 8.0
 
@@ -99,7 +101,7 @@ class AVRAcceptanceEngine:
     - All checks are executed regardless of prior failures
     """
 
-    def __init__(self, grid_rows: List[Dict[str, float | str]], nominal_voltage: float = 230.0):
+    def __init__(self, grid_rows: List[Dict[str, float | str]]):
         """
         Initialize the acceptance engine.
 
@@ -117,7 +119,7 @@ class AVRAcceptanceEngine:
             raise ValueError("AVR evaluation requires exactly 6 rows")
 
         self.rows = grid_rows
-        self.nominal_voltage = nominal_voltage
+        self.nominal_voltage = RATED_OUTPUT_VOLTAGE
 
         # Collected failures and abnormal flags
         self.invalid: Dict[str, Tuple[str, ...]] = {}

@@ -6,6 +6,12 @@ Strategy implementation for SMR (Switched Mode Rectifier) testing.
 
 This module adapts the Test Bench for DC-output devices.
 It maps the UI to DC measurements and uses the SMRAcceptanceEngine for validation.
+
+Key Responsibilities
+--------------------
+- Defining Grid Columns for SMR (including Ripple and PF)
+- Mapping Meter DC parameters to UI labels
+- Invoking the SMRAcceptanceEngine
 """
 
 import os
@@ -25,12 +31,14 @@ class SMRStrategy(TestStrategy):
 
     @property
     def name(self) -> str:
+        """Returns the display name for the UI selector."""
         return "SMR Test"
 
     @property
     def grid_headers(self) -> List[str]:
         """
         Specific column order requested for SMR reports.
+        Includes Ripple and DC output columns.
         """
         return [
             "V (in)", "I (in)", "P (in)", "PF (in)", 
@@ -43,17 +51,21 @@ class SMRStrategy(TestStrategy):
     def live_readings_map(self) -> Dict[str, Tuple[str, str]]:
         """
         Maps generic meter keys to SMR-specific labels.
-        Note: 'vout' is mapped to 'V (out) DC' and 'ripple' is added.
+        
+        Key Differences from AVR:
+        - vout -> V (out) DC
+        - pf -> Power Factor (No Unit)
+        - ripple -> Added
         """
         return {
             "vin": ("V (in)", "V"),
             "iin": ("I (in)", "A"),
             "kwin": ("P (in)", "kW"),
-            "pf": ("PF", ""), # PF has no unit
+            "pf": ("PF", ""), 
             "vout": ("V (out) DC", "V"),
             "iout": ("I (out) DC", "A"),
             "kwout": ("P (out)", "kW"),
-            "ripple": ("Ripple", "mV") # Requires meter driver support
+            "ripple": ("Ripple", "mV")
         }
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
@@ -67,7 +79,5 @@ class SMRStrategy(TestStrategy):
         """
         Generates SMR-specific Excel reports.
         """
-        # For SMR, we currently generate one consolidated report (Result + Submission style)
         report_path = os.path.join(output_dir, f"{prefix}_SMR_REPORT.xlsx")
-        
         generate_smr_excel_report(rows, report_path)

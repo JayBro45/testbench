@@ -3,9 +3,15 @@ smr_excel_report.py
 ===================
 
 Excel Report Generator for SMR Tests.
-Generates a professional report with:
-- Submission Sheet (Clean data)
-- Result Sheet (Color-coded validation)
+
+This module handles the creation of the final Excel file for SMR tests.
+It separates raw data (Submission Sheet) from analyzed data (Result Sheet).
+
+Features
+--------
+- **Two Sheets:** 'Submission' (Clean) and 'Result' (Highlighted).
+- **Conditional Formatting:** Cells failing RDSO criteria are colored Red.
+- **Summary Section:** Appends the pass/fail summary from the engine.
 """
 
 import pandas as pd
@@ -16,8 +22,12 @@ def generate_smr_excel_report(rows: List[Dict[str, Any]], output_path: str) -> N
     """
     Creates an Excel file with SMR test results.
     
-    :param rows: Grid data.
-    :param output_path: Destination file path.
+    Parameters
+    ----------
+    rows : List[Dict[str, Any]]
+        The raw data rows from the UI grid.
+    output_path : str
+        The full file path where the report will be saved.
     """
     
     # 1. Run Engine to get Pass/Fail context
@@ -48,17 +58,16 @@ def generate_smr_excel_report(rows: List[Dict[str, Any]], output_path: str) -> N
         })
         cell_fmt = workbook.add_format({"border": 1, "align": "center"})
         fail_fmt = workbook.add_format({"bg_color": "#FFC7CE", "font_color": "#9C0006", "border": 1})
-        pass_fmt = workbook.add_format({"bg_color": "#C6EFCE", "font_color": "#006100", "border": 1})
-
+        
         # --- SHEET 1: SUBMISSION (Clean) ---
         df.to_excel(writer, sheet_name="Submission", index=False)
         ws_sub = writer.sheets["Submission"]
-        _apply_formatting(ws_sub, df, header_fmt, cell_fmt)
+        _apply_formatting(ws_sub, df, header_fmt)
 
         # --- SHEET 2: RESULT (Validation) ---
         df.to_excel(writer, sheet_name="Result", index=False)
         ws_res = writer.sheets["Result"]
-        _apply_formatting(ws_res, df, header_fmt, cell_fmt)
+        _apply_formatting(ws_res, df, header_fmt)
         
         # Apply Conditional Formatting based on Invalid Cells
         for col_name, row_ids in result.invalid_cells.items():
@@ -72,8 +81,6 @@ def generate_smr_excel_report(rows: List[Dict[str, Any]], output_path: str) -> N
             for row_id_str in row_ids:
                 # Excel Row = int(row_id) - 1 (0-based)
                 # But our row_ids are 1-based header+data style (e.g., "2" is first data row)
-                # Dataframe index is 0-based.
-                # If row_id is "2", that is DF index 0.
                 try:
                     r_idx = int(row_id_str) - 2 
                     if 0 <= r_idx < len(df):
@@ -87,7 +94,7 @@ def generate_smr_excel_report(rows: List[Dict[str, Any]], output_path: str) -> N
         ws_res.merge_range(summary_row + 1, 0, summary_row + 10, 5, result.summary, cell_fmt)
 
 
-def _apply_formatting(worksheet, df, header_fmt, cell_fmt):
+def _apply_formatting(worksheet, df, header_fmt):
     """Helper to apply basic grid styling."""
     for col_num, value in enumerate(df.columns.values):
         worksheet.write(0, col_num, value, header_fmt)
