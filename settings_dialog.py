@@ -53,7 +53,7 @@ class SettingsDialog(QDialog):
         # ------------------------------------------------------------------
         self.setWindowTitle("Settings")
         self.setModal(True)
-        self.resize(450, 220)  # Slightly reduced height since checkbox is gone
+        self.resize(450, 180)  
 
         self.config = config
 
@@ -80,16 +80,6 @@ class SettingsDialog(QDialog):
         layout.addLayout(dir_layout)
 
         # ==================================================================
-        # Rated Output Voltage
-        # ==================================================================
-        layout.addWidget(QLabel("<b>Rated Output Voltage (V)</b>"))
-
-        self.voltage_edit = QLineEdit(
-            str(config.get("avr", {}).get("rated_output_voltage", 230.0))
-        )
-        layout.addWidget(self.voltage_edit)
-
-        # ==================================================================
         # Meter Configuration
         # ==================================================================
         layout.addWidget(QLabel("<b>Meter IP</b>"))
@@ -98,10 +88,6 @@ class SettingsDialog(QDialog):
             config.get("meter", {}).get("ip", "")
         )
         layout.addWidget(self.meter_ip_edit)
-
-        # NOTE: Mock mode checkbox removed. 
-        # Mock mode is now strictly controlled via config.json.
-
         layout.addStretch()
 
         # ==================================================================
@@ -145,31 +131,9 @@ class SettingsDialog(QDialog):
         - Dialog is accepted only on success
         """
 
-        # ------------------------------
-        # Validate Rated Voltage
-        # ------------------------------
-        try:
-            voltage = float(self.voltage_edit.text())
-            if voltage <= 0:
-                raise ValueError
-        except ValueError:
-            QMessageBox.warning(
-                self,
-                "Invalid Voltage",
-                "Rated output voltage must be a positive number."
-            )
-            return
-
-        # ------------------------------
-        # Persist Settings
-        # ------------------------------
         self.config.setdefault("reports", {})[
             "default_output_dir"
         ] = self.export_dir_edit.text().strip()
-
-        self.config.setdefault("avr", {})[
-            "rated_output_voltage"
-        ] = voltage
 
         self.config.setdefault("meter", {})["ip"] = (
             self.meter_ip_edit.text().strip()
