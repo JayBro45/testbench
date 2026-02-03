@@ -21,6 +21,7 @@ Design Notes
 import sys
 import os
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QFont
 
 from ui import MainWindow
 from config_loader import load_config
@@ -52,6 +53,18 @@ def main():
 
     # Start Qt application
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    app_font = app.font()
+    if app_font.pointSize() <= 0:
+        pixel_size = app_font.pixelSize()
+        if pixel_size > 0:
+            screen = app.primaryScreen()
+            dpi = screen.logicalDotsPerInch() if screen else 96
+            point_size = max(1, round(pixel_size * 72 / dpi))
+        else:
+            point_size = 10
+        app_font.setPointSize(point_size)
+        app.setFont(app_font)
 
     # Create and show main window
     window = MainWindow(

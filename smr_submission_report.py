@@ -186,13 +186,12 @@ def generate_smr_submission_excel(
         # ---------------------------------------------------------------------
         # SECTION C — Data Rows
         # ---------------------------------------------------------------------
+        total_data_rows = len(df)        
         for r, row in enumerate(df.itertuples(index=False), start=3):
+            # Set the row height for the current row dynamically
+            worksheet.set_row(r, 22)        
             for c, val in enumerate(row):
                 worksheet.write(r, c, val, fmt_cell)
-
-        # Larger row height for readability (apply to first 6 rows at least)
-        for r in range(3, 9):
-            worksheet.set_row(r, 22)
 
         # ---------------------------------------------------------------------
         # Print Settings (A4)
