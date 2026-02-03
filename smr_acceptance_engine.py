@@ -181,8 +181,14 @@ class SMRAcceptanceEngine:
         Ensures the correct validation limits (RDSO/SPN/TL/23/99 vs RDSO-SPN 165) 
         are applied without requiring user configuration.
         """
+        if self.df.empty:
+            return # Default or exit
+
         out_mean = self.df['V (out)'].mean()
-        
+        # Handle NaN case if column exists but is empty/null
+        if pd.isna(out_mean):
+            return 
+            
         if out_mean > self.SMR_differentiator_volt_threshold:
              self.module_type = "SMR_SMPS"
         else:

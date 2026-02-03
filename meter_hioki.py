@@ -74,7 +74,7 @@ class HiokiPW3336:
         meter_cfg = config["meter"]
 
         self.ip = meter_cfg.get("ip")
-        self.port = meter_cfg.get("port", 5025)
+        self.port = meter_cfg.get("port")
         self.timeout_ms = meter_cfg.get("timeout_ms", 5000)
         self.retry_count = meter_cfg.get("retry_count", 2)
         self.mock = meter_cfg.get("mock", False)
@@ -326,40 +326,52 @@ class HiokiPW3336:
     def read_all(self) -> dict:
         """
         Perform a bulk read of ALL available parameters.
-        The UI/Strategy layer decides which values to display/store.
+        Each parameter read is isolated so one failure
+        does not break the entire bulk read.
 
         Returns
         -------
         dict
-            Dictionary of all parameter names mapped to numeric values.
+            Dictionary of all parameter names mapped to numeric values
+            or None if the read failed.
         """
-        # self.logger.debug("Bulk read started")
+
         data = {}
 
-        try:
-            # Common Parameters
-            data["vin"] = self.read_voltage_in()
-            data["iin"] = self.read_current_in()
-            data["kwin"] = self.read_power_in()
-            data["vout"] = self.read_voltage_out()
-            data["iout"] = self.read_current_out()
-            data["kwout"] = self.read_power_out()
-            data["efficiency"] = self.read_efficiency()
-            
-            # AVR Specific
-            data["frequency"] = self.read_frequency()
-            data["vthd_out"] = self.read_vthd_out()
-            
-            # SMR Specific 
-            data["pf"] = self.read_pf_in()
-            data["vthd_in"] = self.read_vthd_in()
-            data["ithd_in"] = self.read_ithd_in()
-            data["ripple"] = self.read_ripple()
-            data["pin"] = self.read_power_in_watts()
-            data["pout"] = self.read_power_out_watts()
-            
-        except Exception as e:
-            self.logger.error(f"Bulk read error: {e}")    
+        def safe_read(key: str, reader):
+            try:
+                data[key] = reader()
+            except Exception as e:
+                self.logger.error(f"Read failed for '{key}': {e}")
+                data[key] = None   # or float("nan")
+
+        # ----------------------
+        # Common Parameters
+        # ----------------------
+        safe_read("vin", self.read_voltage_in)
+        safe_read("iin", self.read_current_in)
+        safe_read("kwin", self.read_power_in)
+        safe_read("vout", self.read_voltage_out)
+        safe_read("iout", self.read_current_out)
+        safe_read("kwout", self.read_power_out)
+        safe_read("efficiency", self.read_efficiency)
+
+        # ----------------------
+        # AVR Specific
+        # ----------------------
+        safe_read("frequency", self.read_frequency)
+        safe_read("vthd_out", self.read_vthd_out)
+
+        # ----------------------
+        # SMR Specific
+        # ----------------------
+        safe_read("pf", self.read_pf_in)
+        safe_read("vthd_in", self.read_vthd_in)
+        safe_read("ithd_in", self.read_ithd_in)
+        safe_read("ripple", self.read_ripple)
+        safe_read("pin", self.read_power_in_watts)
+        safe_read("pout", self.read_power_out_watts)
+
         return data
 
     # ------------------------------------------------------------------

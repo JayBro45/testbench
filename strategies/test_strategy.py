@@ -74,6 +74,14 @@ class TestStrategy(ABC):
         pass
 
     @abstractmethod
+    def create_row_data(self, reading: Dict[str, float]) -> List[str]:
+        """
+        Converts a raw reading dictionary into a list of strings 
+        matching grid_headers order.
+        """
+        pass
+
+    @abstractmethod
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
         """
         Executes the acceptance logic for the collected data.

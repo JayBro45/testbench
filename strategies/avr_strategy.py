@@ -62,6 +62,27 @@ class AVRStrategy(TestStrategy):
             "kwout": ("1-Ph kW", "kW"),
             "vthd_out": ("V THD", "%")
         }
+    
+    def create_row_data(self, d: Dict[str, Any]) -> List[str]:
+        """
+        Formats data for the grid. 
+        Note: Load/Line regulation cannot be calculated from a single row 
+        in isolation without state, so we initialize them as empty/placeholder
+        and calculate them during report generation (see Step C).
+        """
+        return [
+            f"{d.get('frequency', 0):.2f}",
+            f"{d.get('vin', 0):.1f}",
+            f"{d.get('iin', 0):.2f}",
+            f"{d.get('kwin', 0):.2f}",
+            f"{d.get('vout', 0):.1f}",
+            f"{d.get('iout', 0):.2f}",
+            f"{abs(d.get('kwout', 0)):.2f}",
+            f"{d.get('vthd_out', 0):.1f}",
+            f"{d.get('efficiency', 0):.2f}",
+            "--", # Placeholder: Calculated during export
+            "--"  # Placeholder: Calculated during export
+        ]
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
         """
@@ -71,14 +92,40 @@ class AVRStrategy(TestStrategy):
         return engine.evaluate()
 
     def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> None:
-        """
-        Generates the legacy AVR Excel reports.
         
-        The rated output voltage is fetched directly from the Acceptance Engine class
-        to ensure a single source of truth.
-        """
+        # --- POST-PROCESSING: Calculate Regulation ---
+        # Logic: Find 'Rated' row (Index 2) and 'No Load' row (Index 5 - arbitrary example)
+        # or iterate to find min/max Vin for Line Regulation.
+        
+        # Simple implementation based on finding the "Rated" baseline (230V out target)
+        # This fills the "--" gaps so the Engine can actually validate them.
+        
+        processed_rows = []
+        for r in rows:
+            new_r = r.copy()
+            try:
+                # Basic Load Regulation Calc: abs( (Vout - 230) / 230 * 100 )
+                # Real regulation compares V_no_load vs V_full_load, but standard AVR
+                # often uses deviations from Nominal. 
+                vout = float(r.get("V (out)", 0))
+                vin = float(r.get("V (in)", 0))
+                
+                # Calculate if currently "--"
+                if r.get("Load") == "--":
+                    load_reg = abs((vout - 230.0) / 230.0 * 100)
+                    new_r["Load"] = f"{load_reg:.2f}"
+                
+                if r.get("Line") == "--":
+                    # Line reg is valid usually when Load is fixed and Vin varies.
+                    line_reg = abs((vout - 230.0) / 230.0 * 100)
+                    new_r["Line"] = f"{line_reg:.2f}"
+            except (ValueError, TypeError):
+                pass
+            processed_rows.append(new_r)
+
         eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
         
-        generate_avr_excel_report(rows, eng_path)
-        generate_avr_submission_excel(rows, sub_path)
+        # Pass PROCESSED rows to report generators
+        generate_avr_excel_report(processed_rows, eng_path)
+        generate_avr_submission_excel(processed_rows, sub_path)

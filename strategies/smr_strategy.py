@@ -74,6 +74,21 @@ class SMRStrategy(TestStrategy):
             "ripple": ("Ripple", "mV"),
             "efficiency": ("Efficiency", "%")
         }
+    
+    def create_row_data(self, d: Dict[str, Any]) -> List[str]:
+        return [
+            f"{d.get('vin', 0):.1f}",
+            f"{d.get('iin', 0):.2f}",
+            f"{d.get('pin', 0):.2f}",
+            f"{d.get('pf', 0):.2f}", 
+            f"{d.get('vthd_in', 0):.1f}", 
+            f"{d.get('ithd_in', 0):.1f}",
+            f"{d.get('vout', 0):.2f}", 
+            f"{d.get('iout', 0):.2f}",
+            f"{abs(d.get('pout', 0)):.2f}",
+            f"{d.get('ripple', 0):.1f}",
+            f"{d.get('efficiency', 0):.2f}"
+        ]
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
         """

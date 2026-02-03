@@ -309,15 +309,38 @@ class MainWindow(QMainWindow):
         """
         if mode_name not in self.strategies:
             return
+        
+        # Prevent re-triggering if already on this mode
+        if self.current_strategy == self.strategies[mode_name]:
+            return
 
         self.logger.info(f"Switching strategy to: {mode_name}")
         
-        # If running, stop first
+        # Define the actual switch logic as a closure/method
+        def perform_switch():
+            self.current_strategy = self.strategies[mode_name]
+            self.apply_strategy(mode_name)
+
+        # If running, stop first and wait for finish signal
         if self.is_polling:
-            self.stop_polling()
+            # We must disconnect existing connections to avoid double-firing
+            try:
+                self.polling_worker.finished_polling.disconnect(self.on_polling_finished)
+            except RuntimeError:
+                pass # logic to handle if not connected
             
-        self.current_strategy = self.strategies[mode_name]
-        self.apply_strategy(mode_name)
+            # Create a temporary slot to handle the sequence
+            def on_stop_complete():
+                self.on_polling_finished() # Perform standard cleanup
+                perform_switch()           # Switch strategy
+                # Restore standard connection for next time
+                # (Note: on_polling_finished is usually connected in start_polling, 
+                # but we intercepted the specific stop event here)
+
+            self.polling_worker.finished_polling.connect(on_stop_complete)
+            self.stop_polling()
+        else:
+            perform_switch()
 
     def apply_strategy(self, mode_name: str):
         """
@@ -466,7 +489,12 @@ class MainWindow(QMainWindow):
             # Fallback for missing keys in mock/meter to avoid "None"
             values = [v.replace("None", "0.00") for v in values]
 
+        # Use Strategy to format data
+        values = self.current_strategy.create_row_data(self.latest_data)
+        
         # Populate Table
+        row = self.table.rowCount()
+        self.table.insertRow(row)
         for col, val in enumerate(values):
             item = QTableWidgetItem(str(val))
             item.setTextAlignment(Qt.AlignCenter)
