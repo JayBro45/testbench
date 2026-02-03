@@ -59,14 +59,20 @@ class SMRStrategy(TestStrategy):
         - ripple -> Added
         """
         return {
+            # --- Input Readings ---
             "vin": ("V (in)", "V"),
             "iin": ("I (in)", "A"),
             "pin": ("P (in)", "W"),
             "pf": ("PF", ""), 
+            "vthd_in": ("V THD (in)", "%"),
+            "ithd_in": ("I THD (in)", "%"),
+
+            # --- Output Readings ---
             "vout": ("V (out) DC", "V"),
             "iout": ("I (out) DC", "A"),
             "pout": ("P (out)", "W"),
-            "ripple": ("Ripple", "mV")
+            "ripple": ("Ripple", "mV"),
+            "efficiency": ("Efficiency", "%")
         }
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:

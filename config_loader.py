@@ -186,7 +186,3 @@ def _normalize_config(config: Dict) -> None:
     # Ensure meter mock flag exists (default: False)
     meter = config.get("meter", {})
     meter.setdefault("mock", False)
-
-    # Ensure AVR section exists (optional but expected)
-    config.setdefault("avr", {})
-    config["avr"].setdefault("rated_output_voltage", 230.0)

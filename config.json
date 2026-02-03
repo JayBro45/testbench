@@ -6,7 +6,7 @@
     "site_name": "Testing Floor"
   },
   "reports": {
-    "default_output_dir": "D:/cc"
+    "default_output_dir": "D:\\cc"
   },
   "meter": {
     "ip": "192.168.1.1",
@@ -17,8 +17,5 @@
   },
   "logging": {
     "level": "INFO"
-  },
-  "avr": {
-    "rated_output_voltage": 230.0
   }
 }
