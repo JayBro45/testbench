@@ -6,7 +6,7 @@
     "site_name": "Testing Floor"
   },
   "reports": {
-    "default_output_dir": "D:/AVR_TEST_REPORTS"
+    "default_output_dir": "D:/cc"
   },
   "meter": {
     "ip": "192.168.1.1",

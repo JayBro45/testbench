@@ -369,10 +369,12 @@ class MainWindow(QMainWindow):
         # Logic: Input keys usually end in 'in' or 'freq'/'pf'. Output in 'out'/'ripple'.
         input_items = []
         output_items = []
+
+        # Explicitly define what goes to Output. Everything else is Input.
+        output_keys = ["vout", "iout", "kwout", "pout", "ripple", "efficiency", "vthd_out"]
         
         for key, (label, unit) in full_map.items():
-            # Simple heuristic for grouping
-            if "out" in key or "ripple" in key or "efficiency" in key or "vthd" in key:
+            if key in output_keys:
                 output_items.append((key, label, unit))
             else:
                 input_items.append((key, label, unit))
@@ -450,13 +452,13 @@ class MainWindow(QMainWindow):
             values = [
                 f"{d.get('vin', 0):.1f}",
                 f"{d.get('iin', 0):.2f}",
-                f"{d.get('kwin', 0):.2f}",
-                f"{d.get('pf', 0):.2f}", # PF missing in meter map? Assuming 'pf' key exists or derived
-                f"{d.get('vthd_in', 0):.1f}", # Need to ensure meter provides this or 0
-                f"{d.get('ithd_in', 0):.1f}", # Need to ensure meter provides this or 0
-                f"{d.get('vout', 0):.2f}", # DC requires more precision
+                f"{d.get('pin', 0):.2f}",
+                f"{d.get('pf', 0):.2f}", 
+                f"{d.get('vthd_in', 0):.1f}", 
+                f"{d.get('ithd_in', 0):.1f}",
+                f"{d.get('vout', 0):.2f}", 
                 f"{d.get('iout', 0):.2f}",
-                f"{abs(d.get('kwout', 0)):.2f}",
+                f"{abs(d.get('pout', 0)):.2f}",
                 f"{d.get('ripple', 0):.1f}",
                 f"{d.get('efficiency', 0):.2f}"
             ]

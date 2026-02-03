@@ -299,31 +299,25 @@ class HiokiPW3336:
     # ------------------------------------------------------------------
 
     # Input (CH1 - AC Source)
-    def read_voltage_in(self):   return self._query_float(":MEASure? U1", "vin")
-    def read_current_in(self):   return self._query_float(":MEASure? I1", "iin")
-    def read_power_in(self):     return abs(self._query_float(":MEASure? P1", "kwin") / 1000)
-    def read_frequency(self):    return self._query_float(":MEASure? FREQU1", "frequency")
+    def read_voltage_in(self):      return self._query_float(":MEASure? U1", "vin")
+    def read_current_in(self):      return self._query_float(":MEASure? I1", "iin")
+    def read_power_in(self):        return abs(self._query_float(":MEASure? P1", "kwin") / 1000)
+    def read_frequency(self):       return self._query_float(":MEASure? FREQU1", "frequency")
     
-    # New Input Params for SMR (REQUIRED FOR SMR STRATEGY)
-    def read_pf_in(self):        return self._query_float(":MEASure? PF1", "pf")
-    def read_vthd_in(self):      return self._query_float(":MEASure? UTHD1", "vthd_in")
-    def read_ithd_in(self):      return self._query_float(":MEASure? ITHD1", "ithd_in")
+    # New Input Params for SMR  
+    def read_pf_in(self):           return self._query_float(":MEASure? PF1", "pf")
+    def read_vthd_in(self):         return self._query_float(":MEASure? UTHD1", "vthd_in")
+    def read_ithd_in(self):         return self._query_float(":MEASure? ITHD1", "ithd_in")
+    def read_power_in_watts(self):  return abs(self._query_float(":MEASure? P1", "pin"))
 
-    # Output (CH2 - AC for AVR, DC for SMR)
-    def read_voltage_out(self):  return self._query_float(":MEASure? U2", "vout")
-    def read_current_out(self):  return self._query_float(":MEASure? I2", "iout")
-    def read_power_out(self):    return self._query_float(":MEASure? P2", "kwout") / 1000
-    def read_vthd_out(self):     return self._query_float(":MEASure? UTHD2", "vthd_out")
-    def read_efficiency(self):   return self._query_float(":MEASure? EFF1", "efficiency")
-
-    def read_ripple(self):
-        """
-        Read Ripple Voltage (AC component on DC line).
-        Assumes Ch2 is Output.
-        """
-        if self.mock: return self._mock_read("ripple")
-        # Read AC component of Ch2 Voltage
-        return self._query_float(":MEASure? UAC2", "ripple")
+    # Output (CH2 - AC for AVR, DC  for SMR)
+    def read_voltage_out(self):     return self._query_float(":MEASure? U2", "vout")
+    def read_current_out(self):     return self._query_float(":MEASure? I2", "iout")
+    def read_power_out(self):       return self._query_float(":MEASure? P2", "kwout") / 1000
+    def read_vthd_out(self):        return self._query_float(":MEASure? UTHD2", "vthd_out")
+    def read_efficiency(self):      return self._query_float(":MEASure? EFF1", "efficiency")
+    def read_power_out_watts(self): return self._query_float(":MEASure? P2", "pout")
+    def read_ripple(self):          return self._query_float(":MEASure? UAC2", "ripple")
 
     # ------------------------------------------------------------------
     # Bulk Read
@@ -356,17 +350,16 @@ class HiokiPW3336:
             data["frequency"] = self.read_frequency()
             data["vthd_out"] = self.read_vthd_out()
             
-            # SMR Specific (CRITICAL: Added missing fields)
+            # SMR Specific 
             data["pf"] = self.read_pf_in()
             data["vthd_in"] = self.read_vthd_in()
             data["ithd_in"] = self.read_ithd_in()
             data["ripple"] = self.read_ripple()
+            data["pin"] = self.read_power_in_watts()
+            data["pout"] = self.read_power_out_watts()
             
         except Exception as e:
-            self.logger.error(f"Bulk read error: {e}")
-            # In a real scenario, you might want to raise this or return partial data
-            # For now, we return what we have to keep the UI responsive
-            
+            self.logger.error(f"Bulk read error: {e}")    
         return data
 
     # ------------------------------------------------------------------

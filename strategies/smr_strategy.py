@@ -61,11 +61,11 @@ class SMRStrategy(TestStrategy):
         return {
             "vin": ("V (in)", "V"),
             "iin": ("I (in)", "A"),
-            "kwin": ("P (in)", "kW"),
+            "pin": ("P (in)", "W"),
             "pf": ("PF", ""), 
             "vout": ("V (out) DC", "V"),
             "iout": ("I (out) DC", "A"),
-            "kwout": ("P (out)", "kW"),
+            "pout": ("P (out)", "W"),
             "ripple": ("Ripple", "mV")
         }
 
