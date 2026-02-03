@@ -26,6 +26,7 @@ from PySide6.QtGui import QFont
 from ui import MainWindow
 from config_loader import load_config
 from meter_hioki import HiokiPW3336
+from logger import get_logger
 
 
 def main():
@@ -55,6 +56,12 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app_font = app.font()
+    logger = get_logger("main")
+    logger.debug(
+        "Initial app font sizes: point_size=%s pixel_size=%s",
+        app_font.pointSize(),
+        app_font.pixelSize(),
+    )
     if app_font.pointSize() <= 0:
         pixel_size = app_font.pixelSize()
         if pixel_size > 0:
@@ -65,6 +72,11 @@ def main():
             point_size = 10
         app_font.setPointSize(point_size)
         app.setFont(app_font)
+        logger.debug(
+            "Normalized app font point size: point_size=%s dpi=%s",
+            point_size,
+            dpi if pixel_size > 0 else "n/a",
+        )
 
     # Create and show main window
     window = MainWindow(
