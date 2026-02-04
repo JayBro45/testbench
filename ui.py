@@ -426,8 +426,11 @@ class MainWindow(QMainWindow):
             self.statusbar.showMessage("No data to save")
             return
         
+        # Calculate the NEXT row index (1-based for the logic)
+        next_row_index = self.table.rowCount() + 1
+
         try:
-            values = self.current_strategy.create_row_data(self.latest_data)
+            values = self.current_strategy.create_row_data(self.latest_data, row_index=next_row_index)
         except Exception as e:
             self.logger.error(f"Error creating row data: {e}")
             self.statusbar.showMessage("Error formatting data for grid")

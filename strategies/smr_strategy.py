@@ -75,7 +75,7 @@ class SMRStrategy(TestStrategy):
             "efficiency": ("Efficiency", "%")
         }
     
-    def create_row_data(self, d: Dict[str, Any]) -> List[str]:
+    def create_row_data(self, d: Dict[str, Any], row_index: int = 0) -> List[str]:
         """
         Formats data for the grid.
         Safely handles None values by defaulting them to 0.0.

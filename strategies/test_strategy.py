@@ -74,10 +74,12 @@ class TestStrategy(ABC):
         pass
 
     @abstractmethod
-    def create_row_data(self, reading: Dict[str, float]) -> List[str]:
+    def create_row_data(self, reading: Dict[str, float], row_index: int = 0) -> List[str]:
         """
         Converts a raw reading dictionary into a list of strings 
         matching grid_headers order.
+        :param reading: The data dictionary.
+        :param row_index: The 1-based index of the row being captured (e.g., 1, 2, 3...).
         """
         pass
 

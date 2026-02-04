@@ -18,7 +18,7 @@ Key Responsibilities
 import os
 from typing import List, Dict, Tuple, Any
 from .test_strategy import TestStrategy
-from avr_acceptance_engine import AVRAcceptanceEngine
+from avr_acceptance_engine import AVRAcceptanceEngine, RATED_OUTPUT_VOLTAGE
 from avr_excel_report import generate_avr_excel_report
 from avr_submission_report import generate_avr_submission_excel
 
@@ -63,14 +63,31 @@ class AVRStrategy(TestStrategy):
             "vthd_out": ("V THD", "%")
         }
     
-    def create_row_data(self, d: Dict[str, Any]) -> List[str]:
+    def create_row_data(self, d: Dict[str, Any], row_index: int = 0) -> List[str]:
         """
         Formats data for the grid. 
-        Safely handles None values by defaulting them to 0.0.
+        Calculates Regulation based on Row Index (Legacy Logic).
         """
         def safe_float(key, default=0.0):
             val = d.get(key)
             return float(val) if val is not None else default
+
+        # 1. Get Rated Voltage from Config (Don't hardcode 230!)
+        rated_voltage = RATED_OUTPUT_VOLTAGE
+        vout = safe_float('vout')
+
+        # 2. Calculate Regulation
+        load_val, line_val = "--", "--"
+        
+        reg_calc = abs((vout - rated_voltage) / rated_voltage * 100)
+        
+        # Legacy Logic: 
+        # Rows 2, 3, 6 -> Load Regulation
+        # Rows 4, 5    -> Line Regulation
+        if row_index in (2, 3, 6):
+            load_val = f"{reg_calc:.2f}"
+        elif row_index in (4, 5):
+            line_val = f"{reg_calc:.2f}"
 
         return [
             f"{safe_float('frequency'):.2f}",
@@ -82,8 +99,8 @@ class AVRStrategy(TestStrategy):
             f"{abs(safe_float('kwout')):.2f}",
             f"{safe_float('vthd_out'):.1f}",
             f"{safe_float('efficiency'):.2f}",
-            "--", # Placeholder: Calculated during export
-            "--"  # Placeholder: Calculated during export
+            load_val, # Calculated Live
+            line_val  # Calculated Live
         ]
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
@@ -94,40 +111,11 @@ class AVRStrategy(TestStrategy):
         return engine.evaluate()
 
     def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> None:
-        
-        # --- POST-PROCESSING: Calculate Regulation ---
-        # Logic: Find 'Rated' row (Index 2) and 'No Load' row (Index 5 - arbitrary example)
-        # or iterate to find min/max Vin for Line Regulation.
-        
-        # Simple implementation based on finding the "Rated" baseline (230V out target)
-        # This fills the "--" gaps so the Engine can actually validate them.
-        
-        processed_rows = []
-        for r in rows:
-            new_r = r.copy()
-            try:
-                # Basic Load Regulation Calc: abs( (Vout - 230) / 230 * 100 )
-                # Real regulation compares V_no_load vs V_full_load, but standard AVR
-                # often uses deviations from Nominal. 
-                vout = float(r.get("V (out)", 0))
-                vin = float(r.get("V (in)", 0))
-                
-                # Calculate if currently "--"
-                if r.get("Load") == "--":
-                    load_reg = abs((vout - 230.0) / 230.0 * 100)
-                    new_r["Load"] = f"{load_reg:.2f}"
-                
-                if r.get("Line") == "--":
-                    # Line reg is valid usually when Load is fixed and Vin varies.
-                    line_reg = abs((vout - 230.0) / 230.0 * 100)
-                    new_r["Line"] = f"{line_reg:.2f}"
-            except (ValueError, TypeError):
-                pass
-            processed_rows.append(new_r)
-
+        """
+        Generates AVR reports.
+        """
         eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
-        
-        # Pass PROCESSED rows to report generators
-        generate_avr_excel_report(processed_rows, eng_path)
-        generate_avr_submission_excel(processed_rows, sub_path)
+
+        generate_avr_excel_report(rows, eng_path)
+        generate_avr_submission_excel(rows, sub_path)

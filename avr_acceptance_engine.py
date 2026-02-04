@@ -119,7 +119,7 @@ class AVRAcceptanceEngine:
             raise ValueError("AVR evaluation requires exactly 6 rows")
 
         self.rows = grid_rows
-        self.nominal_voltage = RATED_OUTPUT_VOLTAGE
+        self.rated_voltage = RATED_OUTPUT_VOLTAGE
 
         # Collected failures and abnormal flags
         self.invalid: Dict[str, Tuple[str, ...]] = {}
@@ -135,7 +135,7 @@ class AVRAcceptanceEngine:
         # Rated Load Current Calculation:
         # MATH: I_rated = P_rated / V_nominal (230V)
         self.rated_load_current = round(
-            self.rated_power / self.nominal_voltage, 2
+            self.rated_power / self.rated_voltage, 2
         )
 
     # -------------------------------------------------------------------------
@@ -259,14 +259,14 @@ class AVRAcceptanceEngine:
             iout = float(r["I (out)"])
 
             # 1. General ±4% limits
-            undervolt.append(vout < self.nominal_voltage * 0.96)
-            overvolt.append(vout > self.nominal_voltage * 1.04)
+            undervolt.append(vout < self.rated_voltage * 0.96)
+            overvolt.append(vout > self.rated_voltage * 1.04)
 
             # 2. ±1% when VIN ≈ 230 V
             if self._is_in_tolerance(vin, 230, AC_INPUT_VOLT_TOL):
                 invalid_vin_230.append(
                     not self._is_in_tolerance(
-                        vout, self.nominal_voltage, AC_OUTPUT_VOLT_TOL
+                        vout, self.rated_voltage, AC_OUTPUT_VOLT_TOL
                     )
                 )
             else:
@@ -278,7 +278,7 @@ class AVRAcceptanceEngine:
             ):
                 invalid_full_load.append(
                     not self._is_in_tolerance(
-                        vout, self.nominal_voltage, AC_OUTPUT_VOLT_TOL
+                        vout, self.rated_voltage, AC_OUTPUT_VOLT_TOL
                     )
                 )
             else:
