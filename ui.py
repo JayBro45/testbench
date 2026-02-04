@@ -394,7 +394,7 @@ class MainWindow(QMainWindow):
         output_items = []
 
         # Explicitly define what goes to Output. Everything else is Input.
-        output_keys = ["vout", "iout", "kwout", "pout", "ripple", "efficiency", "vthd_out"]
+        output_keys = ["vout", "iout", "kwout", "pout", "ripple", "efficiency", "vthd_out", "vout_dc", "iout_dc"]
         
         for key, (label, unit) in full_map.items():
             if key in output_keys:
@@ -409,9 +409,6 @@ class MainWindow(QMainWindow):
         self.panels_layout.addWidget(self.input_panel)
         self.panels_layout.addWidget(self.output_panel)
         
-        # Re-add Start Button Container
-        # We need to recreate the button layout wrapper or just add the button back
-        # The button itself 'self.start_btn' still exists, we just detached it from layout
         btn_layout = QVBoxLayout()
         btn_layout.setAlignment(Qt.AlignCenter)
         btn_layout.addWidget(self.start_btn)

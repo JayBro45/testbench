@@ -200,44 +200,25 @@ class HiokiPW3336:
 
     def set_mode_avr(self):
         """
-        Configure meter for AVR Testing (AC Input / AC Output).
-        
-        Commands:
-        - Rectifier Mode Ch1: RMS
-        - Rectifier Mode Ch2: RMS
+        Configure meter for AVR Testing.
+        PW3336 determines mode by the query (U1/U2 for RMS), so no global setup is required.
         """
         if self.mock: 
-            self.logger.info("MOCK: Meter configured for AVR (AC/AC)")
+            self.logger.info("MOCK: Meter configured for AVR")
             return
-
-        try:
-            self.inst.write(":RECTifier:MODE 1, RMS") 
-            self.inst.write(":RECTifier:MODE 2, RMS")
-            self.logger.info("Meter configured for AVR (AC/AC)")
-        except Exception as e:
-            self.logger.error(f"Failed to set AVR mode: {e}")
+        # REMOVED invalid command: :RECTifier:MODE
+        self.logger.info("Meter configured for AVR (Logic handled by specific queries)")
 
     def set_mode_smr(self):
         """
-        Configure meter for SMR Testing (AC Input / DC Output).
-        
-        Commands:
-        - Rectifier Mode Ch1: RMS (AC Input)
-        - Rectifier Mode Ch2: MEAN (DC Output)
+        Configure meter for SMR Testing.
+        PW3336 determines mode by the query (UDC2 for DC), so no global setup is required.
         """
         if self.mock: 
-            self.logger.info("MOCK: Meter configured for SMR (AC/DC)")
+            self.logger.info("MOCK: Meter configured for SMR")
             return
-
-        try:
-            # Ch1 Input = RMS (AC)
-            self.inst.write(":RECTifier:MODE 1, RMS")
-            # Ch2 Output = RMS (AC+DC) -> Essential for measuring Ripple (UAC)
-            self.inst.write(":RECTifier:MODE 2, RMS") 
-            self.logger.info("Meter configured for SMR (AC/DC - RMS Mode)")
-        except Exception as e:
-            self.logger.error(f"Failed to set SMR mode: {e}")
-
+        # REMOVED invalid command: :RECTifier:MODE
+        self.logger.info("Meter configured for SMR (Logic handled by specific queries)")
     # ------------------------------------------------------------------
     # Internal Helpers
     # ------------------------------------------------------------------
@@ -320,7 +301,7 @@ class HiokiPW3336:
     def read_power_out(self):       return self._query_float(":MEASure? P2", "kwout") / 1000
     def read_vthd_out(self):        return self._query_float(":MEASure? UTHD2", "vthd_out")
     def read_efficiency(self):      return self._query_float(":MEASure? EFF1", "efficiency")
-    def read_power_out_watts(self): return self._query_float(":MEASure? P2", "pout")
+    def read_power_out_dc_watts(self): return self._query_float(":MEASure? PDC2", "pout")
     def read_ripple(self):          return self._query_float(":MEASure? UAC2", "ripple")
     # Add explicit DC read methods
     def read_voltage_out_dc(self):  return self._query_float(":MEASure? UDC2", "vout_dc")
@@ -377,7 +358,7 @@ class HiokiPW3336:
         safe_read("ithd_in", self.read_ithd_in)
         safe_read("ripple", self.read_ripple)
         safe_read("pin", self.read_power_in_watts)
-        safe_read("pout", self.read_power_out_watts)
+        safe_read("pout", self.read_power_out_dc_watts)
 
         # Fetch DC specific values
         safe_read("vout_dc", self.read_voltage_out_dc)
