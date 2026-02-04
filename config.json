@@ -13,7 +13,7 @@
     "port": 3300,
     "timeout_ms": 3000,
     "retry_count": 3,
-    "mock": true
+    "mock": false
   },
   "logging": {
     "level": "INFO"

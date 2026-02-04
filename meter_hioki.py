@@ -106,10 +106,10 @@ class HiokiPW3336:
             # Common
             "vin": 230.0,
             "iin": 5.0,
-            "kwin": 1.15,   # kW
+            "kwin": 1.15*1000,   # kW
             "vout": 230.0,
             "iout": 4.8,
-            "kwout": 1.10,  # kW
+            "kwout": 1.10*1000,  # kW
             "efficiency": 95.0,
             
             # AVR Specific
@@ -120,7 +120,9 @@ class HiokiPW3336:
             "pf": 0.99,
             "ripple": 0.05,
             "vthd_in": 2.5,
-            "ithd_in": 3.0
+            "ithd_in": 3.0,
+            "vout_dc": 48.0,
+            "iout_dc": 10.0
         }
 
     # ------------------------------------------------------------------
@@ -228,9 +230,11 @@ class HiokiPW3336:
             return
 
         try:
+            # Ch1 Input = RMS (AC)
             self.inst.write(":RECTifier:MODE 1, RMS")
-            self.inst.write(":RECTifier:MODE 2, MEAN") 
-            self.logger.info("Meter configured for SMR (AC/DC)")
+            # Ch2 Output = RMS (AC+DC) -> Essential for measuring Ripple (UAC)
+            self.inst.write(":RECTifier:MODE 2, RMS") 
+            self.logger.info("Meter configured for SMR (AC/DC - RMS Mode)")
         except Exception as e:
             self.logger.error(f"Failed to set SMR mode: {e}")
 
@@ -318,6 +322,9 @@ class HiokiPW3336:
     def read_efficiency(self):      return self._query_float(":MEASure? EFF1", "efficiency")
     def read_power_out_watts(self): return self._query_float(":MEASure? P2", "pout")
     def read_ripple(self):          return self._query_float(":MEASure? UAC2", "ripple")
+    # Add explicit DC read methods
+    def read_voltage_out_dc(self):  return self._query_float(":MEASure? UDC2", "vout_dc")
+    def read_current_out_dc(self):  return self._query_float(":MEASure? IDC2", "iout_dc")
 
     # ------------------------------------------------------------------
     # Bulk Read
@@ -371,6 +378,10 @@ class HiokiPW3336:
         safe_read("ripple", self.read_ripple)
         safe_read("pin", self.read_power_in_watts)
         safe_read("pout", self.read_power_out_watts)
+
+        # Fetch DC specific values
+        safe_read("vout_dc", self.read_voltage_out_dc)
+        safe_read("iout_dc", self.read_current_out_dc)
 
         return data
 

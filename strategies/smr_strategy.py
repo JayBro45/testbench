@@ -68,8 +68,8 @@ class SMRStrategy(TestStrategy):
             "ithd_in": ("I THD (in)", "%"),
 
             # --- Output Readings ---
-            "vout": ("V (out) DC", "V"),
-            "iout": ("I (out) DC", "A"),
+            "vout_dc": ("V (out) DC", "V"),
+            "iout_dc": ("I (out) DC", "A"),
             "pout": ("P (out)", "W"),
             "ripple": ("Ripple", "mV"),
             "efficiency": ("Efficiency", "%")
@@ -85,14 +85,14 @@ class SMRStrategy(TestStrategy):
             return float(val) if val is not None else default
 
         return [
-            f"{safe_float('vin'):.1f}",
+            f"{safe_float('vin'):.2f}",
             f"{safe_float('iin'):.2f}",
-            f"{safe_float('pin'):.2f}",
+            f"{safe_float('pin'):.1f}",
             f"{safe_float('pf'):.2f}", 
-            f"{safe_float('vthd_in'):.1f}", 
-            f"{safe_float('ithd_in'):.1f}",
-            f"{safe_float('vout'):.2f}", 
-            f"{safe_float('iout'):.2f}",
+            f"{safe_float('vthd_in'):.2f}", 
+            f"{safe_float('ithd_in'):.2f}",
+            f"{safe_float('vout_dc'):.2f}", 
+            f"{safe_float('iout_dc'):.2f}",
             f"{abs(safe_float('pout')):.2f}",
             f"{safe_float('ripple'):.1f}",
             f"{safe_float('efficiency'):.2f}"
