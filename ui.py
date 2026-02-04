@@ -425,72 +425,13 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "latest_data") or not self.latest_data:
             self.statusbar.showMessage("No data to save")
             return
-
-        row = self.table.rowCount()
-        self.table.insertRow(row)
         
-        # Get data map from Strategy to know what columns go where
-        # The Strategy defines headers. We need to construct the row values.
-        # This implementation assumes the Strategy Header order matches specific logic below.
-        
-        d = self.latest_data
-        mode = self.current_strategy.name # "AVR Test" or "SMR Test"
-        
-        values = []
-        
-        if "AVR" in mode:
-            # AVR Headers: Freq, Vin, Iin, kWin, Vout, Iout, kWout, Vthd, Eff, Load, Line
-            # Legacy logic included Load/Line calculation. 
-            # We will preserve simple raw data here or calculate basic derivation if needed.
-            # For robustness, we will put "--" for Load/Line during capture.
-            values = [
-                f"{d.get('frequency', 0):.2f}",
-                f"{d.get('vin', 0):.1f}",
-                f"{d.get('iin', 0):.2f}",
-                f"{d.get('kwin', 0):.2f}",
-                f"{d.get('vout', 0):.1f}",
-                f"{d.get('iout', 0):.2f}",
-                f"{abs(d.get('kwout', 0)):.2f}",
-                f"{d.get('vthd_out', 0):.1f}",
-                f"{d.get('efficiency', 0):.2f}",
-                "--", # Load Reg (Calculated in report)
-                "--"  # Line Reg (Calculated in report)
-            ]
-            
-            # Legacy "Load/Line" inline calc restoration (Optional Visual Aid)
-            # Row index is 0-based in logic, 1-based for user.
-            # AVR Legacy: Rows 2,3,6 -> Load Reg valid. Rows 4,5 -> Line Reg valid.
-            # Using derived logic locally just for display.
-            rated_v = 230.0 # Hardcoded as per strategy
-            vout = d.get('vout', 0)
-            reg_val = round((1 - vout / rated_v) * 100, 2)
-            
-            user_row_idx = row + 1
-            if user_row_idx in (3, 4, 7): # Indices shifted by 1 compared to legacy 2,3,6 logic? 
-                # Let's stick to "--" to avoid confusion. Reports do the real math.
-                pass 
-
-        elif "SMR" in mode:
-            # SMR Headers: Vin, Iin, Pin, PF, Vthd, Ithd, Vout, Iout, Pout, Ripple, Eff
-            values = [
-                f"{d.get('vin', 0):.1f}",
-                f"{d.get('iin', 0):.2f}",
-                f"{d.get('pin', 0):.2f}",
-                f"{d.get('pf', 0):.2f}", 
-                f"{d.get('vthd_in', 0):.1f}", 
-                f"{d.get('ithd_in', 0):.1f}",
-                f"{d.get('vout', 0):.2f}", 
-                f"{d.get('iout', 0):.2f}",
-                f"{abs(d.get('pout', 0)):.2f}",
-                f"{d.get('ripple', 0):.1f}",
-                f"{d.get('efficiency', 0):.2f}"
-            ]
-            
-            # Fallback for missing keys in mock/meter to avoid "None"
-            values = [v.replace("None", "0.00") for v in values]
-
-        # Use Strategy to format data
-        values = self.current_strategy.create_row_data(self.latest_data)
+        try:
+            values = self.current_strategy.create_row_data(self.latest_data)
+        except Exception as e:
+            self.logger.error(f"Error creating row data: {e}")
+            self.statusbar.showMessage("Error formatting data for grid")
+            return
         
         # Populate Table
         row = self.table.rowCount()
@@ -502,6 +443,8 @@ class MainWindow(QMainWindow):
             self.table.setItem(row, col, item)
 
         self.statusbar.showMessage(f"Row {row + 1} saved")
+        # Access name property safely
+        mode = getattr(self.current_strategy, "name", "Unknown Mode")
         self.logger.info(f"Captured Row {row + 1} ({mode})")
 
     def delete_selected_rows(self):

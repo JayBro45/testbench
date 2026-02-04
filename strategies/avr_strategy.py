@@ -66,20 +66,22 @@ class AVRStrategy(TestStrategy):
     def create_row_data(self, d: Dict[str, Any]) -> List[str]:
         """
         Formats data for the grid. 
-        Note: Load/Line regulation cannot be calculated from a single row 
-        in isolation without state, so we initialize them as empty/placeholder
-        and calculate them during report generation (see Step C).
+        Safely handles None values by defaulting them to 0.0.
         """
+        def safe_float(key, default=0.0):
+            val = d.get(key)
+            return float(val) if val is not None else default
+
         return [
-            f"{d.get('frequency', 0):.2f}",
-            f"{d.get('vin', 0):.1f}",
-            f"{d.get('iin', 0):.2f}",
-            f"{d.get('kwin', 0):.2f}",
-            f"{d.get('vout', 0):.1f}",
-            f"{d.get('iout', 0):.2f}",
-            f"{abs(d.get('kwout', 0)):.2f}",
-            f"{d.get('vthd_out', 0):.1f}",
-            f"{d.get('efficiency', 0):.2f}",
+            f"{safe_float('frequency'):.2f}",
+            f"{safe_float('vin'):.1f}",
+            f"{safe_float('iin'):.2f}",
+            f"{safe_float('kwin'):.2f}",
+            f"{safe_float('vout'):.1f}",
+            f"{safe_float('iout'):.2f}",
+            f"{abs(safe_float('kwout')):.2f}",
+            f"{safe_float('vthd_out'):.1f}",
+            f"{safe_float('efficiency'):.2f}",
             "--", # Placeholder: Calculated during export
             "--"  # Placeholder: Calculated during export
         ]

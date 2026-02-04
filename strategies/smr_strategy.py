@@ -76,18 +76,26 @@ class SMRStrategy(TestStrategy):
         }
     
     def create_row_data(self, d: Dict[str, Any]) -> List[str]:
+        """
+        Formats data for the grid.
+        Safely handles None values by defaulting them to 0.0.
+        """
+        def safe_float(key, default=0.0):
+            val = d.get(key)
+            return float(val) if val is not None else default
+
         return [
-            f"{d.get('vin', 0):.1f}",
-            f"{d.get('iin', 0):.2f}",
-            f"{d.get('pin', 0):.2f}",
-            f"{d.get('pf', 0):.2f}", 
-            f"{d.get('vthd_in', 0):.1f}", 
-            f"{d.get('ithd_in', 0):.1f}",
-            f"{d.get('vout', 0):.2f}", 
-            f"{d.get('iout', 0):.2f}",
-            f"{abs(d.get('pout', 0)):.2f}",
-            f"{d.get('ripple', 0):.1f}",
-            f"{d.get('efficiency', 0):.2f}"
+            f"{safe_float('vin'):.1f}",
+            f"{safe_float('iin'):.2f}",
+            f"{safe_float('pin'):.2f}",
+            f"{safe_float('pf'):.2f}", 
+            f"{safe_float('vthd_in'):.1f}", 
+            f"{safe_float('ithd_in'):.1f}",
+            f"{safe_float('vout'):.2f}", 
+            f"{safe_float('iout'):.2f}",
+            f"{abs(safe_float('pout')):.2f}",
+            f"{safe_float('ripple'):.1f}",
+            f"{safe_float('efficiency'):.2f}"
         ]
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
