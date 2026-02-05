@@ -210,26 +210,30 @@ class HiokiPW3336:
         self.logger.info("Meter configured for AVR (Logic handled by specific queries)")
 
     def set_mode_smr(self):
-        """
-        Configure meter for SMR Testing.
-        PW3336 determines mode by the query (UDC2 for DC), so no global setup is required.
-        """
         if self.mock:
             self.logger.info("MOCK: Meter configured for SMR")
             return
 
         if not self.inst:
             raise RuntimeError("Meter not connected")
-        self.inst.write(":MODE DC")  # or correct numeric code
 
-        # Ensure DC measurement items are active
+        # Set DC mode
+        self.inst.write(":WIRing TYPE1")
+
+        # Clear all measurement items
         self.inst.write(":MEASure:ITEM:ALLClear")
-        self.inst.write(":MEASure:ITEM:U:CH2 ON")
-        self.inst.write(":MEASure:ITEM:I:CH2 ON")
-        self.inst.write(":MEASure:ITEM:P:CH2 ON")
 
-        time.sleep(0.3)  # stabilization
-        self.logger.info("Meter configured for SMR (Logic handled by specific queries)")
+        # Enable required DC outputs
+        self.inst.write(":MEASure:ITEM:UDC:CH2 ON")   # DC voltage
+        self.inst.write(":MEASure:ITEM:IDC:CH2 ON")   # DC current
+        self.inst.write(":MEASure:ITEM:PDC:CH2 ON")   # DC power
+        self.inst.write(":MEASure:ITEM:UAC:CH2 ON")   # ripple component
+
+        # Wait for stabilization (2 cycles)
+        time.sleep(0.5)
+
+        self.logger.info("Meter configured for SMR")
+
     # ------------------------------------------------------------------
     # Internal Helpers
     # ------------------------------------------------------------------
@@ -313,7 +317,7 @@ class HiokiPW3336:
     def read_vthd_out(self):        return self._query_float(":MEASure? UTHD2", "vthd_out")
     def read_efficiency(self):      return self._query_float(":MEASure? EFF1", "efficiency")
     def read_power_out_dc_watts(self): return self._query_float(":MEASure? PDC2", "pout")
-    def read_ripple(self):          return self._query_float(":MEASure? UAC2", "ripple")
+    def read_ripple(self):          return self._query_float(":MEASure? URF2", "ripple") * 100
     # Add explicit DC read methods
     def read_voltage_out_dc(self):  return self._query_float(":MEASure? UDC2", "vout_dc")
     def read_current_out_dc(self):  return self._query_float(":MEASure? IDC2", "iout_dc")
@@ -423,6 +427,7 @@ class HiokiPW3336:
             "connected": False,
             "dc_voltage_valid": False,
             "dc_current_valid": False,
+            "ripple_valid": False,
             "errors": [],
             "warnings": [],
             "status": "UNKNOWN"
@@ -432,30 +437,28 @@ class HiokiPW3336:
             # -------------------------------------------------
             # 1. Connection check
             # -------------------------------------------------
-            idn = self.connect() if not self.is_connected() else "CONNECTED"
+            if not self.is_connected():
+                self.connect()
+
             report["connected"] = True
 
             # -------------------------------------------------
-            # 2. Read current mode
+            # 2. Read wiring mode (actual configuration)
             # -------------------------------------------------
             if not self.mock:
                 try:
-                    mode = self.inst.query(":MODE?").strip()
-                    report["mode"] = mode
-
-                    if "DC" not in mode.upper():
-                        report["errors"].append("Meter not in DC/SMR mode")
+                    wiring = self.inst.query(":WIRing?").strip()
+                    report["mode"] = wiring
                 except Exception:
-                    report["warnings"].append("Unable to read mode")
-
+                    report["warnings"].append("Unable to read wiring mode")
             else:
                 report["mode"] = "MOCK"
 
             # -------------------------------------------------
             # 3. Wait for stabilization
-            # (manual says up to 200 ms cycle)
+            # (manual: up to 200 ms measurement cycle)
             # -------------------------------------------------
-            time.sleep(0.3)
+            time.sleep(0.5)
 
             # -------------------------------------------------
             # 4. Check event registers for errors
@@ -480,16 +483,25 @@ class HiokiPW3336:
             try:
                 vdc = self.read_voltage_out_dc()
                 idc = self.read_current_out_dc()
+                ripple = self.read_ripple()
 
+                # Voltage check
                 if vdc is not None and vdc > 1:
                     report["dc_voltage_valid"] = True
                 else:
                     report["errors"].append("Invalid DC output voltage")
 
+                # Current check
                 if idc is not None and idc > 0.1:
                     report["dc_current_valid"] = True
                 else:
                     report["warnings"].append("Low or zero DC output current")
+
+                # Ripple check
+                if ripple is not None and ripple > 0.001:
+                    report["ripple_valid"] = True
+                else:
+                    report["warnings"].append("Ripple reading is zero or invalid")
 
             except Exception:
                 report["errors"].append("Failed to read DC output values")
@@ -509,3 +521,4 @@ class HiokiPW3336:
             report["status"] = "FAIL"
 
         return report
+

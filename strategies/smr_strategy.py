@@ -94,7 +94,7 @@ class SMRStrategy(TestStrategy):
             f"{safe_float('vout_dc'):.2f}", 
             f"{safe_float('iout_dc'):.2f}",
             f"{abs(safe_float('pout')):.2f}",
-            f"{safe_float('ripple'):.1f}",
+            f"{safe_float('ripple'):.0f}",
             f"{safe_float('efficiency'):.2f}"
         ]
 
