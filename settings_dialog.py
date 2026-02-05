@@ -13,7 +13,6 @@ only; persistence is handled externally by the application.
 Editable Settings
 -----------------
 - Default export directory
-- Rated AVR output voltage
 - Meter IP address
 
 Design Notes

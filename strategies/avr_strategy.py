@@ -114,6 +114,8 @@ class AVRStrategy(TestStrategy):
         """
         Generates AVR reports.
         """
+        if len(rows) != 6:
+            raise ValueError(f"AVR Reports require exactly 6 rows. Current: {len(rows)}")
         eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
 
