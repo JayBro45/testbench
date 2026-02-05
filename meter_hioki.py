@@ -206,7 +206,6 @@ class HiokiPW3336:
         if self.mock: 
             self.logger.info("MOCK: Meter configured for AVR")
             return
-        # REMOVED invalid command: :RECTifier:MODE
         self.logger.info("Meter configured for AVR (Logic handled by specific queries)")
 
     def set_mode_smr(self):
