@@ -214,10 +214,21 @@ class HiokiPW3336:
         Configure meter for SMR Testing.
         PW3336 determines mode by the query (UDC2 for DC), so no global setup is required.
         """
-        if self.mock: 
+        if self.mock:
             self.logger.info("MOCK: Meter configured for SMR")
             return
-        # REMOVED invalid command: :RECTifier:MODE
+
+        if not self.inst:
+            raise RuntimeError("Meter not connected")
+        self.inst.write(":MODE DC")  # or correct numeric code
+
+        # Ensure DC measurement items are active
+        self.inst.write(":MEASure:ITEM:ALLClear")
+        self.inst.write(":MEASure:ITEM:U:CH2 ON")
+        self.inst.write(":MEASure:ITEM:I:CH2 ON")
+        self.inst.write(":MEASure:ITEM:P:CH2 ON")
+
+        time.sleep(0.3)  # stabilization
         self.logger.info("Meter configured for SMR (Logic handled by specific queries)")
     # ------------------------------------------------------------------
     # Internal Helpers
@@ -396,3 +407,105 @@ class HiokiPW3336:
             status["idn"] = "UNAVAILABLE"
 
         return status
+    
+    def smr_health_check(self) -> dict:
+        """
+        Perform an automatic SMR-mode health check.
+
+        Returns
+        -------
+        dict
+            Diagnostic results with status flags.
+        """
+
+        report = {
+            "mode": None,
+            "connected": False,
+            "dc_voltage_valid": False,
+            "dc_current_valid": False,
+            "errors": [],
+            "warnings": [],
+            "status": "UNKNOWN"
+        }
+
+        try:
+            # -------------------------------------------------
+            # 1. Connection check
+            # -------------------------------------------------
+            idn = self.connect() if not self.is_connected() else "CONNECTED"
+            report["connected"] = True
+
+            # -------------------------------------------------
+            # 2. Read current mode
+            # -------------------------------------------------
+            if not self.mock:
+                try:
+                    mode = self.inst.query(":MODE?").strip()
+                    report["mode"] = mode
+
+                    if "DC" not in mode.upper():
+                        report["errors"].append("Meter not in DC/SMR mode")
+                except Exception:
+                    report["warnings"].append("Unable to read mode")
+
+            else:
+                report["mode"] = "MOCK"
+
+            # -------------------------------------------------
+            # 3. Wait for stabilization
+            # (manual says up to 200 ms cycle)
+            # -------------------------------------------------
+            time.sleep(0.3)
+
+            # -------------------------------------------------
+            # 4. Check event registers for errors
+            # -------------------------------------------------
+            if not self.mock:
+                try:
+                    esr1 = int(self.inst.query(":ESR1?"))
+                    esr2 = int(self.inst.query(":ESR2?"))
+
+                    if esr1 != 0:
+                        report["warnings"].append(f"CH1 event flags: {esr1}")
+
+                    if esr2 != 0:
+                        report["warnings"].append(f"CH2 event flags: {esr2}")
+
+                except Exception:
+                    report["warnings"].append("Could not read event registers")
+
+            # -------------------------------------------------
+            # 5. Read DC output values
+            # -------------------------------------------------
+            try:
+                vdc = self.read_voltage_out_dc()
+                idc = self.read_current_out_dc()
+
+                if vdc is not None and vdc > 1:
+                    report["dc_voltage_valid"] = True
+                else:
+                    report["errors"].append("Invalid DC output voltage")
+
+                if idc is not None and idc > 0.1:
+                    report["dc_current_valid"] = True
+                else:
+                    report["warnings"].append("Low or zero DC output current")
+
+            except Exception:
+                report["errors"].append("Failed to read DC output values")
+
+            # -------------------------------------------------
+            # 6. Final status decision
+            # -------------------------------------------------
+            if report["errors"]:
+                report["status"] = "FAIL"
+            elif report["warnings"]:
+                report["status"] = "WARN"
+            else:
+                report["status"] = "PASS"
+
+        except Exception as e:
+            report["errors"].append(str(e))
+            report["status"] = "FAIL"
+
+        return report

@@ -34,3 +34,4 @@ cmake/**/.generated/*
 cmake/**/CMake*
 out/
 _temp.py
+_testingSMR.py
