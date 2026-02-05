@@ -159,17 +159,17 @@ def generate_smr_submission_excel(
         # SECTION B — Table Header
         # ---------------------------------------------------------------------
         headers = [
-            "V (in)", "I (in)", "P (in)", "PF (in)",
-            "Vthd (in)", "Ithd (in)",
-            "V (out)", "I (out)", "P (out)",
+            "Vac (in)", "Iac (in)", "Pac (in)", "PF (in)",
+            "Vthd% (in)", "Ithd% (in)",
+            "Vdc (out)", "Idc (out)", "Pdc (out)",
             "Ripple", "Efficiency"
         ]
 
         units = [
-            "V", "A", "kW", "pf",
+            "V", "A", "W", "pf",
             "%", "%",
-            "V", "A", "kW",
-            "V", "%"
+            "V", "A", "W",
+            "mV", "%"
         ]
 
         # Header row

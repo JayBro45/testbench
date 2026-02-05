@@ -299,28 +299,28 @@ class HiokiPW3336:
     # ------------------------------------------------------------------
 
     # Input (CH1 - AC Source)
-    def read_voltage_in(self):      return self._query_float(":MEASure? U1", "vin")
-    def read_current_in(self):      return self._query_float(":MEASure? I1", "iin")
-    def read_power_in(self):        return abs(self._query_float(":MEASure? P1", "kwin") / 1000)
-    def read_frequency(self):       return self._query_float(":MEASure? FREQU1", "frequency")
-    
-    # New Input Params for SMR  
-    def read_pf_in(self):           return self._query_float(":MEASure? PF1", "pf")
-    def read_vthd_in(self):         return self._query_float(":MEASure? UTHD1", "vthd_in")
-    def read_ithd_in(self):         return self._query_float(":MEASure? ITHD1", "ithd_in")
-    def read_power_in_watts(self):  return abs(self._query_float(":MEASure? P1", "pin"))
+    def read_voltage_in(self):              return self._query_float(":MEASure? U1", "vin")
+    def read_current_in(self):              return self._query_float(":MEASure? I1", "iin")
+    def read_power_in(self):                return abs(self._query_float(":MEASure? P1", "kwin") / 1000)
+    def read_frequency(self):               return self._query_float(":MEASure? FREQU1", "frequency")
+
+    # New Input Params for SMR          
+    def read_pf_in(self):                   return abs(self._query_float(":MEASure? PF1", "pf"))
+    def read_vthd_in(self):                 return self._query_float(":MEASure? UTHD1", "vthd_in")
+    def read_ithd_in(self):                 return self._query_float(":MEASure? ITHD1", "ithd_in")
+    def read_power_in_watts(self):          return abs(self._query_float(":MEASure? P1", "pin"))
 
     # Output (CH2 - AC for AVR, DC  for SMR)
-    def read_voltage_out(self):     return self._query_float(":MEASure? U2", "vout")
-    def read_current_out(self):     return self._query_float(":MEASure? I2", "iout")
-    def read_power_out(self):       return self._query_float(":MEASure? P2", "kwout") / 1000
-    def read_vthd_out(self):        return self._query_float(":MEASure? UTHD2", "vthd_out")
-    def read_efficiency(self):      return self._query_float(":MEASure? EFF1", "efficiency")
-    def read_power_out_dc_watts(self): return self._query_float(":MEASure? PDC2", "pout")
-    def read_ripple(self):          return self._query_float(":MEASure? URF2", "ripple") * 100
-    # Add explicit DC read methods
-    def read_voltage_out_dc(self):  return self._query_float(":MEASure? UDC2", "vout_dc")
-    def read_current_out_dc(self):  return self._query_float(":MEASure? IDC2", "iout_dc")
+    def read_voltage_out(self):             return self._query_float(":MEASure? U2", "vout")
+    def read_current_out(self):             return self._query_float(":MEASure? I2", "iout")
+    def read_power_out(self):               return self._query_float(":MEASure? P2", "kwout") / 1000
+    def read_vthd_out(self):                return self._query_float(":MEASure? UTHD2", "vthd_out")
+    def read_efficiency(self):              return self._query_float(":MEASure? EFF1", "efficiency")
+    def read_power_out_dc_watts(self):      return self._query_float(":MEASure? PDC2", "pout")
+    def read_ripple(self):                  return self._query_float(":MEASure? URF2", "ripple") * 100
+    # Add explicit DC read methods      
+    def read_voltage_out_dc(self):          return self._query_float(":MEASure? UDC2", "vout_dc")
+    def read_current_out_dc(self):          return self._query_float(":MEASure? IDC2", "iout_dc")
 
     # ------------------------------------------------------------------
     # Bulk Read
