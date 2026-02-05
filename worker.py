@@ -23,7 +23,7 @@ This worker is designed to be **robust under real hardware conditions**,
 including intermittent communication failures.
 """
 
-from PySide6.QtCore import QThread, Signal, QMutex
+from PySide6.QtCore import QThread, Signal, QMutex, QMutexLocker
 import time
 from logger import get_logger  # <--- NEW IMPORT
 
@@ -181,9 +181,8 @@ class MeterPollingWorker(QThread):
         This method is thread-safe and non-blocking.
         """
         self.logger.info("Worker stop requested")
-        self._mutex.lock()
-        self._running = False
-        self._mutex.unlock()
+        with QMutexLocker(self._mutex):
+            self._running = False
 
     def is_running(self) -> bool:
         """
@@ -194,10 +193,8 @@ class MeterPollingWorker(QThread):
         bool
             True if polling should continue, False otherwise.
         """
-        self._mutex.lock()
-        state = self._running
-        self._mutex.unlock()
-        return state
+        with QMutexLocker(self._mutex):
+            return self._running
 
     # ------------------------------------------------------------------
     # Utility Helpers
@@ -211,11 +208,15 @@ class MeterPollingWorker(QThread):
         duration : float
             Total sleep duration in seconds.
         """
-        steps = int(duration / 0.1)
-        for _ in range(steps):
+        step_seconds = 0.1
+        remaining = max(0.0, duration)
+
+        while remaining > 0:
             if not self.is_running():
                 return
-            time.sleep(0.1)
+            sleep_time = min(step_seconds, remaining)
+            time.sleep(sleep_time)
+            remaining -= sleep_time
 
     def safe_disconnect(self):
         """
