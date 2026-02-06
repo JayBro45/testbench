@@ -17,7 +17,6 @@ Design Principles:
 - Power values exposed in kW (internally fetched in watts)
 - Input Power values taken as Absolute
 
-This module must remain backward-compatible with existing callers.
 """
 
 import pyvisa
@@ -338,44 +337,92 @@ class HiokiPW3336:
             or None if the read failed.
         """
 
+        param_map = [
+            ("vin", "U1"), ("iin", "I1"), ("pin_watts", "P1"), ("frequency", "FREQU1"),
+            ("pf", "PF1"), ("vthd_in", "UTHD1"), ("ithd_in", "ITHD1"),
+            ("vout", "U2"), ("iout", "I2"), ("pout_ac_watts", "P2"), ("vthd_out", "UTHD2"),
+            ("efficiency", "EFF1"), ("pout_dc_watts", "PDC2"), ("ripple_raw", "URF2"),
+            ("vout_dc", "UDC2"), ("iout_dc", "IDC2")
+        ]
+        
         data = {}
 
-        def safe_read(key: str, reader):
+        if self.mock:
+            # Simulation path
+            for key, _ in param_map:
+                data[key] = self._mock_read(key)
+        else:
+            # Hardware path: Build one query string like ":MEAS? U1,I1,P1..."
+            items = ",".join(item for _, item in param_map)
+            cmd = f":MEASure? {items}"
+            
             try:
-                data[key] = reader()
+                # One round-trip for all data
+                resp_str = self.inst.query(cmd).strip()
+                values = resp_str.split(';') # PW3336 usually separates multiple items with ';'
+                
+                # Fallback if comma separated (depending on config, though default is typically ;)
+                if len(values) == 1 and ',' in resp_str:
+                    values = resp_str.split(',')
+
+                if len(values) != len(param_map):
+                    raise ValueError(f"Mismatch in bulk read: Expected {len(param_map)}, got {len(values)}")
+
+                for i, (key, _) in enumerate(param_map):
+                    try:
+                        data[key] = float(values[i])
+                    except ValueError:
+                        data[key] = None # Partial failure handling
+
             except Exception as e:
-                self.logger.error(f"Read failed for '{key}': {e}")
-                data[key] = None   # or float("nan")
+                self.logger.error(f"Bulk read failed: {e}")
+                # Return empty dict implies full failure, handled by worker
+                return {} 
 
-        # ----------------------
-        # Common Parameters
-        # ----------------------
-        safe_read("vin", self.read_voltage_in)
-        safe_read("iin", self.read_current_in)
-        safe_read("kwin", self.read_power_in)
-        safe_read("vout", self.read_voltage_out)
-        safe_read("iout", self.read_current_out)
-        safe_read("kwout", self.read_power_out)
-        safe_read("efficiency", self.read_efficiency)
+        # ------------------------------------------------------
+        # Post-Processing / Derivations
+        # ------------------------------------------------------
+        # Safe getter helper
+        def get(k): return data.get(k) if data.get(k) is not None else None
 
-        # ----------------------
-        # AVR Specific
-        # ----------------------
-        safe_read("frequency", self.read_frequency)
-        safe_read("vthd_out", self.read_vthd_out)
+        final_data = {}
+        
+        # --- Direct Pass-through ---
+        final_data["vin"] = get("vin")
+        final_data["iin"] = get("iin")
+        final_data["vout"] = get("vout")
+        final_data["iout"] = get("iout")
+        final_data["frequency"] = get("frequency")
+        final_data["pf"] = abs(get("pf")) if get("pf") is not None else None
+        final_data["vthd_in"] = get("vthd_in")
+        final_data["ithd_in"] = get("ithd_in")
+        final_data["vthd_out"] = get("vthd_out")
+        final_data["efficiency"] = get("efficiency")
+        final_data["vout_dc"] = get("vout_dc")
+        final_data["iout_dc"] = get("iout_dc")
 
-        # ----------------------
-        # SMR Specific
-        # ----------------------
-        safe_read("pf", self.read_pf_in)
-        safe_read("vthd_in", self.read_vthd_in)
-        safe_read("ithd_in", self.read_ithd_in)
-        safe_read("ripple", self.read_ripple)
-        safe_read("pin", self.read_power_in_watts)
-        safe_read("pout", self.read_power_out_dc_watts)
+        # --- Calculated  ---
+        # 1. Input Power: Used for both kW (kwin) and W (pin)
+        p1 = get("pin_watts")
+        if p1 is not None:
+            final_data["pin"] = abs(p1)
+            final_data["kwin"] = abs(p1) / 1000.0
+        else:
+            final_data["pin"] = None
+            final_data["kwin"] = None
 
-        # Fetch DC specific values
-        safe_read("vout_dc", self.read_voltage_out_dc)
-        safe_read("iout_dc", self.read_current_out_dc)
+        # 2. Output Power (AC): kW (kwout)
+        p2 = get("pout_ac_watts")
+        if p2 is not None:
+            final_data["kwout"] = p2 / 1000.0
+        else:
+            final_data["kwout"] = None
 
-        return data
+        # 3. Output Power (DC): W (pout)
+        final_data["pout"] = get("pout_dc_watts")
+
+        # 4. Ripple (Convert V to mV)
+        rip = get("ripple_raw")
+        final_data["ripple"] = rip * 100.0 if rip is not None else None # Original logic was *100, assuming scale? Keeping logic.
+
+        return final_data

@@ -26,7 +26,7 @@ from PySide6.QtGui import QFont
 from ui import MainWindow
 from config_loader import load_config
 from meter_hioki import HiokiPW3336
-from logger import get_logger
+from logger import get_logger, set_log_level
 
 
 def main():
@@ -48,6 +48,9 @@ def main():
         # Fallback if logger setup failed or config is missing/corrupt
         print(f"CRITICAL STARTUP ERROR: {e}")
         sys.exit(1)
+    
+    log_level = config.get("logging", {}).get("level", "INFO")
+    set_log_level(log_level)
 
     # Initialize meter (real or mock based on config)
     meter = HiokiPW3336(config)

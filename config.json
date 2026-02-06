@@ -16,6 +16,6 @@
     "mock": false
   },
   "logging": {
-    "level": "INFO"
+    "level": "CRITICAL"
   }
 }

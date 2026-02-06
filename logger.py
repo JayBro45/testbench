@@ -123,3 +123,19 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     _initialize_logging()
     return logging.getLogger(name)
+
+def set_log_level(level_name: str) -> None:
+    """
+    Updates the log level for all handlers at runtime.
+    
+    :param level_name: String level (e.g., "DEBUG", "INFO", "WARNING")
+    """
+    level = getattr(logging, level_name.upper(), DEFAULT_LOG_LEVEL)
+    
+    # Update root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    
+    # Update all attached handlers
+    for handler in root_logger.handlers:
+        handler.setLevel(level)
