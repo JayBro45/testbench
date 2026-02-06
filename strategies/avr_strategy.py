@@ -96,7 +96,7 @@ class AVRStrategy(TestStrategy):
             f"{safe_float('kwin'):.2f}",
             f"{safe_float('vout'):.1f}",
             f"{safe_float('iout'):.2f}",
-            f"{abs(safe_float('kwout')):.2f}",
+            f"{safe_float('kwout'):.2f}",
             f"{safe_float('vthd_out'):.1f}",
             f"{safe_float('efficiency'):.2f}",
             load_val, # Calculated Live
