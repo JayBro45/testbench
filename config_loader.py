@@ -127,30 +127,18 @@ def _validate_config(config: Dict) -> None:
         if key not in config:
             raise ConfigError(f"Missing top-level config key: '{key}'")
 
-    # ---- Site ----
     _require_keys(config["site"], ["site_id", "site_name"], "site")
+    _require_keys(config["reports"], ["default_output_dir"], "reports")
+    _require_keys(config["meter"], ["ip", "port", "timeout_ms", "retry_count"], "meter")
+    _require_keys(config["logging"], ["level"], "logging")
 
-    # ---- Reports ----
-    _require_keys(
-        config["reports"],
-        ["default_output_dir"],
-        "reports"
-    )
+    # Hardcoded IP Fallback Check
+    meter_cfg = config["meter"]
+    is_mock = meter_cfg.get("mock", False)
+    ip_addr = meter_cfg.get("ip")
 
-    # ---- Meter ----
-    _require_keys(
-        config["meter"],
-        ["ip", "port", "timeout_ms", "retry_count"],
-        "meter"
-    )
-
-    # ---- Logging ----
-    _require_keys(
-        config["logging"],
-        ["level"],
-        "logging"
-    )
-
+    if not is_mock and not ip_addr:
+        raise ConfigError("Meter configuration invalid: 'ip' is required when 'mock' is False.")
 
 def _require_keys(section: Dict, keys: list, section_name: str) -> None:
     """Utility validator for required keys in a config section."""
