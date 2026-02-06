@@ -75,13 +75,13 @@ class SMRStrategy(TestStrategy):
             "efficiency": ("Efficiency", "%")
         }
     
-    def create_row_data(self, d: Dict[str, Any], row_index: int = 0) -> List[str]:
+    def create_row_data(self, reading: Dict[str, Any], row_index: int = 0) -> List[str]:
         """
         Formats data for the grid.
         Safely handles None values by defaulting them to 0.0.
         """
         def safe_float(key, default=0.0):
-            val = d.get(key)
+            val = reading.get(key)
             return float(val) if val is not None else default
 
         return [
@@ -105,7 +105,7 @@ class SMRStrategy(TestStrategy):
         engine = SMRAcceptanceEngine(rows)
         return engine.evaluate()
 
-    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> None:
+    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> str:
         """
         Generates SMR-specific Excel reports.
         1. Result Report (Engineering/Validation)
@@ -131,8 +131,11 @@ class SMRStrategy(TestStrategy):
         }
         type_folder = type_folder_map.get(module_type, module_type)
 
-        # Final directory: <base_output_dir>/<type_folder>
-        final_output_dir = os.path.join(output_dir, type_folder)
+        #   <base_reports_dir>/<type_folder>/<date_or_user_named_folder>
+        base_reports_dir = os.path.dirname(output_dir)
+        report_folder = os.path.basename(output_dir)
+
+        final_output_dir = os.path.join(base_reports_dir, type_folder, report_folder)
         os.makedirs(final_output_dir, exist_ok=True)
 
         res_path = os.path.join(final_output_dir, f"{prefix}_SMR_RESULT.xlsx")
@@ -140,3 +143,5 @@ class SMRStrategy(TestStrategy):
         
         generate_smr_excel_report(rows, res_path)
         generate_smr_submission_excel(rows, sub_path)
+
+        return final_output_dir

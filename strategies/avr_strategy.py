@@ -63,13 +63,13 @@ class AVRStrategy(TestStrategy):
             "vthd_out": ("V THD", "%")
         }
     
-    def create_row_data(self, d: Dict[str, Any], row_index: int = 0) -> List[str]:
+    def create_row_data(self, reading: Dict[str, Any], row_index: int = 0) -> List[str]:
         """
         Formats data for the grid. 
         Calculates Regulation based on Row Index (Legacy Logic).
         """
         def safe_float(key, default=0.0):
-            val = d.get(key)
+            val = reading.get(key)
             return float(val) if val is not None else default
 
         # 1. Get Rated Voltage from Config (Don't hardcode 230!)
@@ -110,14 +110,19 @@ class AVRStrategy(TestStrategy):
         engine = AVRAcceptanceEngine(rows)
         return engine.evaluate()
 
-    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> None:
+    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> str:
         """
         Generates AVR reports.
         """
         if len(rows) != 6:
             raise ValueError(f"AVR Reports require exactly 6 rows. Current: {len(rows)}")
+
+        os.makedirs(output_dir, exist_ok=True)
+
         eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
 
         generate_avr_excel_report(rows, eng_path)
         generate_avr_submission_excel(rows, sub_path)
+
+        return output_dir

@@ -528,22 +528,31 @@ class MainWindow(QMainWindow):
         prefix = f"{self.current_strategy.name.split()[0]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # 3. Ask for specific folder name (Optional, keeps organized)
-        export_dir = self.get_or_create_export_folder(base_dir, prefix)
-        if not export_dir:
+        # UI is responsible only for selecting the base directory and a folder name.
+        # Each strategy is responsible for creating any required directories.
+        folder_name, ok = QInputDialog.getText(
+            self,
+            "Export Folder Name",
+            "Enter folder name for this test:",
+            text=prefix,
+        )
+        if not ok or not folder_name.strip():
+            self.statusbar.showMessage("Export cancelled (no folder name)")
             return
+        export_dir = os.path.join(base_dir, folder_name.strip())
 
         # 4. Delegate to Strategy
         try:
-            self.current_strategy.generate_reports(rows, export_dir, prefix)
+            actual_dir = self.current_strategy.generate_reports(rows, export_dir, prefix)
 
             msg = f"{self.current_strategy.name} reports generated successfully"
             QMessageBox.information(
                 self,
                 "Success",
-                f"{msg}:\n\n{export_dir}"
+                f"{msg}:\n\n{actual_dir}"
             )
             self.statusbar.showMessage("Reports generated")
-            self.logger.info(f"Reports generated at {export_dir}") 
+            self.logger.info(f"Reports generated at {actual_dir}") 
 
         except Exception as e:
             self.logger.error("Export Failed", exc_info=True) 

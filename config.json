@@ -6,16 +6,16 @@
     "site_name": "Testing Floor"
   },
   "reports": {
-    "default_output_dir": "D:/AVR_TEST_REPORTS"
+    "default_output_dir": "D:/Test Reports"
   },
   "meter": {
     "ip": "192.168.1.1",
     "port": 3300,
     "timeout_ms": 3000,
     "retry_count": 3,
-    "mock": false
+    "mock": true
   },
   "logging": {
-    "level": "CRITICAL"
+    "level": "INFO"
   }
 }
