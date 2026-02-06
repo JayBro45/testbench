@@ -111,8 +111,32 @@ class SMRStrategy(TestStrategy):
         1. Result Report (Engineering/Validation)
         2. Submission Report (Clean)
         """
-        res_path = os.path.join(output_dir, f"{prefix}_SMR_RESULT.xlsx")
-        sub_path = os.path.join(output_dir, f"{prefix}_SMR_SUBMISSION.xlsx")
+        # Detect SMR module type so we can route reports into
+        # a type-specific subfolder under the base output directory.
+        #
+        # Types (from SMRAcceptanceEngine):
+        # - "SMR_SMPS"
+        # - "SMR_Telecom_RE"
+        # - "SMR_Telecom_Non-RE"
+        engine = SMRAcceptanceEngine(rows)
+        _ = engine.evaluate()  # Ensures type detection and internal state are populated
+        module_type = getattr(engine, "module_type", "SMR_SMPS")
+
+        # Map detected type to folder name. Folder names are kept identical
+        # to the internal type identifiers for traceability.
+        type_folder_map = {
+            "SMR_SMPS": "SMR_SMPS",
+            "SMR_Telecom_RE": "SMR_Telecom_RE",
+            "SMR_Telecom_Non-RE": "SMR_Telecom_Non-RE",
+        }
+        type_folder = type_folder_map.get(module_type, module_type)
+
+        # Final directory: <base_output_dir>/<type_folder>
+        final_output_dir = os.path.join(output_dir, type_folder)
+        os.makedirs(final_output_dir, exist_ok=True)
+
+        res_path = os.path.join(final_output_dir, f"{prefix}_SMR_RESULT.xlsx")
+        sub_path = os.path.join(final_output_dir, f"{prefix}_SMR_SUBMISSION.xlsx")
         
         generate_smr_excel_report(rows, res_path)
         generate_smr_submission_excel(rows, sub_path)
