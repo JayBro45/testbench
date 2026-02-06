@@ -29,7 +29,7 @@ This engine performs **pass / fail classification** and identifies:
 
 import pandas as pd
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, cast
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class SMRAcceptanceEngine:
         # Output Voltage Limits (V)
         self.VOLTAGE_LIMITS = {
             "SMPS": {"under": 101.09, "over": 138.16},  # Based on LM battery spec
-            "TELECOM": {"under": 44.4, "over": 56.0}    # Based on LM battery spec
+            "TELECOM": {"under": 44.4, "over": 66.0}    # Based on LM battery spec
         }
 
         # Universal Limits
@@ -132,7 +132,7 @@ class SMRAcceptanceEngine:
         self.LIMIT_SMPS_PF = 0.90      # General
         self.LIMIT_SMPS_PF_NOM = 0.95  # @ 230V
         self.LIMIT_SMPS_EFF_GEN = 85.0 # %
-        self.LIMIT_SMPS_EFF_HIGH = 90.0# % (@ 275V/20A)
+        self.LIMIT_SMPS_EFF_HIGH = 90.0# % (@ 275V/20A) TO DO: 230V/20A
 
         # Telecom Specific Limits
         self.LIMIT_TEL_VTHD = 10.0     # %
@@ -184,7 +184,8 @@ class SMRAcceptanceEngine:
         if self.df.empty:
             return # Default or exit
 
-        out_mean = self.df['V (out)'].mean()
+        out_mean_raw = self.df['V (out)'].mean()
+        out_mean = cast(float, out_mean_raw)
         # Handle NaN case if column exists but is empty/null
         if pd.isna(out_mean):
             return 
@@ -194,9 +195,9 @@ class SMRAcceptanceEngine:
         else:
             first_row_vin = self.df.iloc[0]['V (in)'] if not self.df.empty else 0
             
-            if self._is_in_tolerance(first_row_vin, 165, 16.5): # 10% tol
+            if self._is_in_tolerance(first_row_vin, 165, 165*0.1): # 10% tol
                 self.module_type = "SMR_Telecom_RE"
-            elif self._is_in_tolerance(first_row_vin, 90, 9.0): # 10% tol
+            elif self._is_in_tolerance(first_row_vin, 90, 90*0.1): # 10% tol
                 self.module_type = "SMR_Telecom_Non-RE"
             else:
                 self.module_type = "SMR_Telecom_RE" # Default fallback
@@ -214,7 +215,7 @@ class SMRAcceptanceEngine:
         Rules (Math)
         ------------
         **1. SMR SMPS (110V):**
-           - **Nominal Case:** If Vin is 230V (±5%):
+           - **Nominal Case:** If Vin is 230V (±5%) AND I_out is 100% of Rated (±1A):
              - FAIL if: abs(PF) < 0.95
            - **General Case:** Otherwise:
              - FAIL if: abs(PF) < 0.90
@@ -233,14 +234,22 @@ class SMRAcceptanceEngine:
         """
         col = 'PF (in)'
         if self.module_type == "SMR_SMPS":
-            is_230 = self.df['V (in)'].map(lambda x: self._is_in_tolerance(x, 230, 5))
-            
-            fail_230 = is_230 & self.df[col].abs().lt(self.LIMIT_SMPS_PF_NOM)
-            fail_other = (~is_230) & self.df[col].abs().lt(self.LIMIT_SMPS_PF)
+            # Nominal case: 230 V (±5%) and full-load output current (Rated ±1A)
+            is_230 = self.df['V (in)'].map(
+                lambda x: self._is_in_tolerance(x, 230, 230 * 0.05)  # 5% tolerance
+            )
+            is_full_load = self.df['I (out)'].map(
+                lambda x: self._is_in_tolerance(x, self.RATED_CURRENT_SMPS, 1.0)  # 1A tolerance   #TO DO: CONFIRM WITH IQBAL
+            )
+
+            is_nominal_point = is_230 & is_full_load
+
+            fail_230 = is_nominal_point & self.df[col].abs().lt(self.LIMIT_SMPS_PF_NOM)
+            fail_other = (~is_nominal_point) & self.df[col].abs().lt(self.LIMIT_SMPS_PF)
             
             self.invalid_dict[col] = self._get_row_ids(fail_230 | fail_other)
         else:
-            is_nom = self.df['V (in)'].map(lambda x: self._is_in_tolerance(x, 230, 5))
+            is_nom = self.df['V (in)'].map(lambda x: self._is_in_tolerance(x, 230, 230*0.05)) # 5% tolerance
             rated_i = self.RATED_CURRENT_TELECOM
             is_high_load = self.df['I (out)'] >= (0.75 * rated_i)
             
@@ -260,7 +269,7 @@ class SMRAcceptanceEngine:
         Rules (Math)
         ------------
         **1. SMR SMPS (110V):**
-           - **High Voltage/Current Case:** If Vin is 275V (±5%) AND I_out is 20A (±1A):
+           - **High Voltage/Current Case:** If Vin is 230V (±5%) AND I_out is 20A (±1A):
              - FAIL if: Efficiency < 90.0 %
            - **General Case:** Otherwise:
              - FAIL if: Efficiency < 85.0 %
@@ -278,18 +287,21 @@ class SMRAcceptanceEngine:
         """
         col = 'Efficiency'
         if self.module_type == "SMR_SMPS":
-            is_275 = self.df['V (in)'].map(lambda x: self._is_in_tolerance(x, 275, 5))
-            is_20A = self.df['I (out)'].map(lambda x: self._is_in_tolerance(x, 20, 1))
+            # High-efficiency check at nominal input and full load
+            is_230 = self.df['V (in)'].map(
+                lambda x: self._is_in_tolerance(x, 230, 230 * 0.05)
+            )  # 5% tolerance
+            is_20A = self.df['I (out)'].map(lambda x: self._is_in_tolerance(x, 20, 1))      # 1A tolerance
             
-            special_case = is_275 & is_20A
+            special_case = is_230 & is_20A
             fail_special = special_case & (self.df[col] < self.LIMIT_SMPS_EFF_HIGH)
             fail_general = (~special_case) & (self.df[col] < self.LIMIT_SMPS_EFF_GEN)
             
             self.invalid_dict[col] = self._get_row_ids(fail_special | fail_general)
         else:
-            is_nom = self.df['V (in)'].map(lambda x: self._is_in_tolerance(x, 230, 5))
+            is_nom = self.df['V (in)'].map(lambda x: self._is_in_tolerance(x, 230, 230*0.05)) # 5% tolerance
             rated_i = self.RATED_CURRENT_TELECOM
-            is_full = self.df['I (out)'].map(lambda x: self._is_in_tolerance(x, rated_i, 1))
+            is_full = self.df['I (out)'].map(lambda x: self._is_in_tolerance(x, rated_i, 1))  # 1A tolerance
             
             special_case = is_nom & is_full
             fail_special = special_case & (self.df[col] < self.LIMIT_TEL_EFF_HIGH)
@@ -309,7 +321,7 @@ class SMRAcceptanceEngine:
 
         **2. Voltage THD (Vthd):**
            - **SMR SMPS:** FAIL if Vthd (in) >= 8.0 %
-           - **SMR Telecom:** FAIL if Vthd (in) >= 10.0 %
+           - **SMR Telecom:** FAIL if Vthd (in) >= 10.0 %                   
 
         Why
         ---
@@ -342,7 +354,7 @@ class SMRAcceptanceEngine:
 
         **2. SMR Telecom (48V System):**
            - FAIL if V_out < 44.4 V
-           - FAIL if V_out > 56.0 V
+           - FAIL if V_out > 66.0 V
 
         Why
         ---
