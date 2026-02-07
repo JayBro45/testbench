@@ -445,6 +445,7 @@ class MainWindow(QMainWindow):
             item.setTextAlignment(Qt.AlignCenter)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, col, item)
+            self.table.scrollToBottom()
 
         self.statusbar.showMessage(f"Row {row + 1} saved")
         # Access name property safely
