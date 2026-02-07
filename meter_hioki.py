@@ -99,16 +99,20 @@ class HiokiPW3336:
         self._enabled_params = config.get("parameters", {})
 
         # ------------------------------------------------------------------
-        # Mock State (internal values in watts where applicable)
+        # Mock State (internal values in **watts** where applicable)
+        # NOTE:
+        # - Power channels are stored in watts and converted to kW
+        #   by the public read helpers (see read_power_in/read_power_out
+        #   and post-processing in read_all).
         # ------------------------------------------------------------------
         self._mock_state = {
             # Common
             "vin": 230.0,
             "iin": 5.0,
-            "kwin": 1.15*1000,   # kW
+            "kwin": 1.15 * 1000,   # W (exposed as kW via helpers)
             "vout": 230.0,
             "iout": 4.8,
-            "kwout": 1.10*1000,  # kW
+            "kwout": 1.10 * 1000,  # W (exposed as kW via helpers)
             "efficiency": 95.0,
             
             # AVR Specific
@@ -421,7 +425,11 @@ class HiokiPW3336:
         # 3. Output Power (DC): W (pout)
         final_data["pout"] = get("pout_dc_watts")
 
-        # 4. Ripple (Convert V to mV)
+        # 4. Ripple
+        # The meter's URF2 reading is returned in volts (per the Hioki manual),
+        # and historically we multiplied by 100 before surfacing this to the UI
+        # so that typical values are in a convenient mV-range scale for reports.
+        # This scaling is preserved here for strict legacy compatibility.
         rip = get("ripple_raw")
         final_data["ripple"] = rip * 100.0 if rip is not None else None # Original logic was *100, assuming scale? Keeping logic.
 

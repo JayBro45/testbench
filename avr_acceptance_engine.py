@@ -153,7 +153,7 @@ class AVRAcceptanceEngine:
         Pass if: Lower Limit <= measured <= Upper Limit
         """
         tol = tol_percent / 100.0
-        return measured * (1 - tol) <= expected <= measured * (1 + tol)
+        return expected * (1 - tol) <= measured <= expected * (1 + tol)
 
     def _row_ids(self, flags):
         """

@@ -74,7 +74,7 @@ class TestStrategy(ABC):
         pass
 
     @abstractmethod
-    def create_row_data(self, reading: Dict[str, float], row_index: int = 0) -> List[str]:
+    def create_row_data(self, reading: Dict[str, Any], row_index: int = 0) -> List[str]:
         """
         Converts a raw reading dictionary into a list of strings 
         matching grid_headers order.

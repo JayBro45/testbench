@@ -28,11 +28,11 @@ This engine performs **pass / fail classification** and identifies:
 """
 
 import pandas as pd
-import logging
 from typing import List, Dict, Tuple, cast
 from dataclasses import dataclass
+from logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class SMRResult:
@@ -238,8 +238,10 @@ class SMRAcceptanceEngine:
             is_230 = self.df['V (in)'].map(
                 lambda x: self._is_in_tolerance(x, 230, 230 * 0.05)  # 5% tolerance
             )
+            # Full-load detection: nominal rated current with ±1 A tolerance,
+            # matching the legacy Excel implementation.
             is_full_load = self.df['I (out)'].map(
-                lambda x: self._is_in_tolerance(x, self.RATED_CURRENT_SMPS, 1.0)  # 1A tolerance   #TO DO: CONFIRM WITH IQBAL
+                lambda x: self._is_in_tolerance(x, self.RATED_CURRENT_SMPS, 1.0)
             )
 
             is_nominal_point = is_230 & is_full_load

@@ -290,13 +290,17 @@ class MainWindow(QMainWindow):
             self.output_panel.update_value(key, val)
 
     def on_worker_warning(self, msg):
+        """Handle non-fatal warnings emitted by the background worker."""
         self.statusbar.showMessage(f"Warning: {msg}", 3000)
 
     def on_worker_error(self, msg):
+        """Handle errors emitted by the background worker and stop polling."""
+        self.logger.error(f"Worker error: {msg}")
         self.statusbar.showMessage(f"Error: {msg}")
         self.on_polling_finished()
 
     def on_status_message(self, msg):
+        """Update the status bar with a generic informational message."""
         self.statusbar.showMessage(msg)
 
     # =========================================================================
@@ -554,30 +558,15 @@ class MainWindow(QMainWindow):
             self.statusbar.showMessage("Reports generated")
             self.logger.info(f"Reports generated at {actual_dir}") 
 
-        except Exception as e:
-            self.logger.error("Export Failed", exc_info=True) 
+        except Exception:
+            # The exception is logged with full traceback for debugging,
+            # while the UI shows a concise error message to the user.
+            self.logger.error("Export failed while generating reports", exc_info=True)
             QMessageBox.critical(
                 self,
                 "Export Failed",
                 f"Failed to generate reports:\n\n{e}"
             )
-
-    def get_or_create_export_folder(self, base_dir: str, default_name: str) -> str | None:
-        """Prompts user for a specific test folder name."""
-        folder_name, ok = QInputDialog.getText(
-            self,
-            "Export Folder Name",
-            "Enter folder name for this test:",
-            text=default_name
-        )
-
-        if not ok or not folder_name.strip():
-            self.statusbar.showMessage("Export cancelled (no folder name)")
-            return None
-
-        final_path = os.path.join(base_dir, folder_name.strip())
-        os.makedirs(final_path, exist_ok=True)
-        return final_path
 
     def open_reports_folder(self):
         """Opens the OS file explorer at the default report directory."""
@@ -647,7 +636,7 @@ class MainWindow(QMainWindow):
             super().keyPressEvent(event)
 
     def _show_context_menu(self, position):
-        """Triggered on right-click; shows a 'Delete' option if rows are selected."""
+        """Show a context menu on right-click to allow deleting selected rows."""
         item = self.table.itemAt(position)
         if not item:
             return
