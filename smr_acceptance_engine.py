@@ -132,7 +132,7 @@ class SMRAcceptanceEngine:
         self.LIMIT_SMPS_PF = 0.90      # General
         self.LIMIT_SMPS_PF_NOM = 0.95  # @ 230V
         self.LIMIT_SMPS_EFF_GEN = 85.0 # %
-        self.LIMIT_SMPS_EFF_HIGH = 90.0# % (@ 275V/20A) 
+        self.LIMIT_SMPS_EFF_HIGH = 90.0# % (@ 230V/20A)    
 
         # Telecom Specific Limits
         self.LIMIT_TEL_VTHD = 10.0     # %

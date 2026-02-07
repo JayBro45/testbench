@@ -6,14 +6,14 @@
     "site_name": "Testing Floor"
   },
   "reports": {
-    "default_output_dir": "D:/Test Reports"
+    "default_output_dir": "D:\\Test Reports"
   },
   "meter": {
     "ip": "192.168.1.1",
     "port": 3300,
     "timeout_ms": 3000,
     "retry_count": 3,
-    "mock": true
+    "mock": false
   },
   "logging": {
     "level": "INFO"
