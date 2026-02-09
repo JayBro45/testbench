@@ -187,8 +187,6 @@ class MainWindow(QMainWindow):
             "AVR": AVRStrategy(self.config),
             "SMR": SMRStrategy(self.config)
         }
-        # Default to AVR
-        self.current_strategy = self.strategies["AVR"]
 
         # 5. Window Setup
         self.setWindowTitle(self.config.get("app_name", "Test Bench Software"))
@@ -208,8 +206,13 @@ class MainWindow(QMainWindow):
         if default_dir:
             self.location_edit.setText(default_dir)
 
-        # Apply the initial strategy (Sets headers, panels, meter mode)
-        self.apply_strategy("AVR")
+        # Apply the initial strategy from config (Sets headers, panels, meter mode)
+        default_mode = self.config.get("default_test_mode", "AVR")
+        if default_mode not in self.strategies:
+            default_mode = "AVR"
+        self.mode_selector.setCurrentText(default_mode)
+        self.current_strategy = self.strategies[default_mode]
+        self.apply_strategy(default_mode)
         
         # 8. Initial State
         self.save_btn.setEnabled(False)
@@ -620,6 +623,14 @@ class MainWindow(QMainWindow):
             default_dir = self.config.get("reports", {}).get("default_output_dir")
             if default_dir:
                 self.location_edit.setText(default_dir)
+            # Apply new default test mode to current session if not polling
+            new_mode = self.config.get("default_test_mode", "AVR")
+            if new_mode in self.strategies and not self.is_polling:
+                self.mode_selector.blockSignals(True)
+                self.mode_selector.setCurrentText(new_mode)
+                self.mode_selector.blockSignals(False)
+                self.current_strategy = self.strategies[new_mode]
+                self.apply_strategy(new_mode)
 
             try:
                 save_config(self.config)

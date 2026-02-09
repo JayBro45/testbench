@@ -13,6 +13,7 @@ only; persistence is handled externally by the application.
 Editable Settings
 -----------------
 - Default export directory
+- Default test mode (AVR / SMR)
 - Meter IP address
 
 Design Notes
@@ -26,7 +27,7 @@ Design Notes
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFileDialog,
+    QLineEdit, QPushButton, QFileDialog, QComboBox,
     QMessageBox
 )
 from PySide6.QtCore import Qt
@@ -52,7 +53,7 @@ class SettingsDialog(QDialog):
         # ------------------------------------------------------------------
         self.setWindowTitle("Settings")
         self.setModal(True)
-        self.resize(450, 180)  
+        self.resize(450, 240)
 
         self.config = config
 
@@ -77,6 +78,17 @@ class SettingsDialog(QDialog):
         dir_layout.addWidget(self.export_dir_edit)
         dir_layout.addWidget(browse_btn)
         layout.addLayout(dir_layout)
+
+        # ==================================================================
+        # Default Test Mode
+        # ==================================================================
+        layout.addWidget(QLabel("<b>Default Test Mode</b>"))
+        self.default_mode_combo = QComboBox()
+        self.default_mode_combo.addItems(["AVR", "SMR"])
+        current = config.get("default_test_mode", "AVR")
+        if current in ("AVR", "SMR"):
+            self.default_mode_combo.setCurrentText(current)
+        layout.addWidget(self.default_mode_combo)
 
         # ==================================================================
         # Meter Configuration
@@ -137,5 +149,5 @@ class SettingsDialog(QDialog):
         self.config.setdefault("meter", {})["ip"] = (
             self.meter_ip_edit.text().strip()
         )
-        
+        self.config["default_test_mode"] = self.default_mode_combo.currentText()
         self.accept()
