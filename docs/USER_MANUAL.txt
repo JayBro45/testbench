@@ -1,0 +1,113 @@
+IPS Testing Software — User Manual
+==================================
+
+This manual explains how to install and use the IPS Testing Software (Test Bench) on your Windows PC.
+
+
+Installation
+------------
+
+Requirements
+  - Windows 10 or 11
+  - No need to install Python or any other software
+  - For meter connection: ensure the Hioki meter is on the network and any required drivers (e.g. VISA) are installed if applicable
+
+Steps
+  1. Unzip the distribution package to a folder of your choice (e.g. C:\IPS_Testing_Software).
+
+  2. Ensure these files are in the same folder:
+     - IPS_Testing_Software.exe — the application
+     - config.json — configuration file (must be in the same folder as the exe)
+
+  3. Optional: Edit config.json before first run (see Configuration below). You can use the sample config.json provided in the package as-is and change settings later from the application menu.
+
+  4. Run the application: Double-click IPS_Testing_Software.exe.
+
+  5. On first run, the application will create a "logs" folder in the same directory for the log file (testbench.log). Reports will be saved to the path set in Settings (see below).
+
+
+Using the Application
+----------------------
+
+The main window is divided into four sections. Work through them in order.
+
+1. Select Test Mode
+  - Choose AVR or SMR from the dropdown.
+  - The hardware mode switches automatically when you change the selection.
+  - Switch mode only when the test is stopped (or the app will stop the test, then switch).
+
+2. Observe Real-Time Readings
+  - START TEST — Starts reading values from the meter. The input/output panels show live values.
+  - Stop — Stops the test. You can then change mode or start again.
+  - While the test is running, you can Save Reading (see section 3) to add the current values to the grid.
+
+3. Save Readings
+  - SAVE READING — Adds the current live readings as one row in the table. Use this repeatedly to record multiple samples.
+  - CLEAR GRID — Removes all rows from the table (start over).
+  - Right-click on the table → Delete — Removes the selected row(s). You can also select rows and press Delete on the keyboard.
+
+4. Export Report
+  - Location — Shows the default export folder (set in Configuration → Settings). You cannot type here; change it in Settings.
+  - EXPORT EXCEL — Generates Excel report(s) from the current grid data:
+    1. The app will ask for a folder name for this test (a default name is suggested).
+    2. Reports are created inside the default export directory, in a subfolder with that name.
+    3. For AVR: Result and Submission workbooks are generated.
+    4. For SMR: Result and Submission workbooks are generated in the same way.
+
+  If the export location is not set or the folder does not exist, the app will ask you to set it in Settings.
+
+
+Menus
+-----
+
+  Menu              Option                  Description
+  ----              ------                  -----------
+  File              New Test                Clears the grid and resets for a new test (stops test if running).
+  File              Open Reports Folder      Opens the default report directory in Windows Explorer.
+  File              Exit                     Closes the application.
+  Configuration     Settings                Opens the Settings dialog (export folder, meter IP).
+  Help              Usage Instructions       Shows a short in-app usage reminder.
+
+
+Configuration
+-------------
+
+Settings (Configuration → Settings)
+  - Default Export Directory — Folder where Excel reports will be saved. Use Browse to select a folder. This path is shown in the "4. Export Report" section.
+  - Meter IP Address — IP address of the Hioki meter on your network. Must be correct for live readings when not using mock mode.
+
+  Settings are saved when you click OK and are stored in config.json next to the exe.
+
+config.json (Advanced)
+  You can edit config.json in a text editor to change:
+  - app_name — Name shown in the window title and header.
+  - site — Site ID and name (used in reports).
+  - reports.default_output_dir — Same as "Default Export Directory" in Settings.
+  - meter.ip, meter.port, meter.timeout_ms, meter.retry_count — Meter connection. Mock mode must be set in this file (meter.mock: true for no hardware).
+
+  After editing, save the file and restart the application.
+
+
+Logs and Troubleshooting
+------------------------
+
+  - Log file: logs\testbench.log in the same folder as the exe. Check this if something goes wrong.
+  - "Config file not found" — Ensure config.json is in the same folder as IPS_Testing_Software.exe.
+  - No live readings / meter errors — Check meter power and network; confirm the meter IP in Settings and that no firewall is blocking the connection.
+  - Export failed — Ensure the default export directory exists and you have write permission. Set or change it in Configuration → Settings.
+
+
+Quick Reference
+---------------
+
+  Action                How
+  ------                ---
+  Run the app           Double-click IPS_Testing_Software.exe.
+  Start / stop test     Use START TEST / Stop in section 2.
+  Record a reading      Click SAVE READING while the test is running.
+  Export to Excel       Fill the grid, then click EXPORT EXCEL and enter a folder name.
+  Change export folder  Configuration → Settings → Default Export Directory.
+  Change meter IP       Configuration → Settings → Meter IP Address.
+
+
+IPS Testing Software — User Manual. For support, contact your administrator or refer to the log file.

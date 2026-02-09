@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QStyle, QSizePolicy, QTableWidgetItem, QMessageBox, QInputDialog, QMenu
 )
 from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QIcon
 
 # =============================================================================
 # Local Application Imports
@@ -46,6 +47,18 @@ from logger import get_logger
 # Strategy Imports
 from strategies.avr_strategy import AVRStrategy
 from strategies.smr_strategy import SMRStrategy
+
+
+# =============================================================================
+# Asset Path (works when running from source and when frozen via PyInstaller)
+# =============================================================================
+def _logo_path():
+    """Path to assets/logo.png next to the script or inside the frozen bundle."""
+    if getattr(sys, "frozen", False):
+        base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "assets", "logo.png")
 
 
 # =============================================================================
@@ -179,7 +192,11 @@ class MainWindow(QMainWindow):
 
         # 5. Window Setup
         self.setWindowTitle(self.config.get("app_name", "Test Bench Software"))
+        self.setMinimumSize(1000, 650)
         self.resize(1200, 750)
+        logo_path = _logo_path()
+        if os.path.isfile(logo_path):
+            self.setWindowIcon(QIcon(logo_path))
 
         # 6. Build UI
         self._build_menus()
@@ -695,7 +712,9 @@ class MainWindow(QMainWindow):
     def _build_ui(self):
         """Constructs the central widget content."""
         central = QWidget()
+        central.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(15)
 
         # --- Top Section Container ---
@@ -704,7 +723,8 @@ class MainWindow(QMainWindow):
 
         # 1. Test Mode Selection (Refactored from Radio Buttons to ComboBox)
         test_group = QGroupBox("1. Select Test Mode")
-        test_group.setFixedWidth(260)
+        test_group.setMinimumWidth(240)
+        test_group.setMaximumWidth(280)
         test_layout = QVBoxLayout(test_group)
         
         self.mode_selector = QComboBox()
@@ -718,9 +738,9 @@ class MainWindow(QMainWindow):
         test_layout.addWidget(self.mode_selector)
         top_layout.addWidget(test_group)
 
-        # 2. Live Readings Section
-        # This wrapper is needed because we destroy/recreate panels inside it
+        # 2. Live Readings Section (fixed height so AVR/SMR switch doesn't resize window)
         live_group = QGroupBox("2. Observe Real-Time Readings")
+        live_group.setMinimumHeight(220)
         live_layout = QVBoxLayout(live_group)
         self.panels_layout = QHBoxLayout()
         self.panels_layout.setSpacing(12)
@@ -752,7 +772,17 @@ class MainWindow(QMainWindow):
         grid_layout.addWidget(self.table)
 
         # Grid Action Buttons
+        grid_btn_sep = QFrame()
+        grid_btn_sep.setFrameShape(QFrame.HLine)
+        grid_btn_sep.setFrameShadow(QFrame.Sunken)
+        grid_btn_sep.setLineWidth(1)
+        grid_btn_sep.setStyleSheet("QFrame { margin: 6px 0; }")
+        grid_layout.addWidget(grid_btn_sep)
+
+        # Grid Action Buttons (dedicated row with spacing)
         grid_btns_layout = QHBoxLayout()
+        grid_btns_layout.setSpacing(12)
+        grid_btns_layout.setContentsMargins(0, 8, 0, 4)
         self.clear_btn = QPushButton("CLEAR GRID")
         self._style_button(self.clear_btn, "#C62828", QStyle.SP_BrowserReload)
         self.clear_btn.clicked.connect(self.clear_entire_grid)

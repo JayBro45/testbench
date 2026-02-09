@@ -21,9 +21,9 @@ Design Notes
 import sys
 import os
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon
 
-from ui import MainWindow
+from ui import MainWindow, _logo_path
 from config_loader import load_config
 from meter_hioki import HiokiPW3336
 from logger import get_logger, set_log_level
@@ -58,6 +58,9 @@ def main():
     # Start Qt application
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    logo_path = _logo_path()
+    if os.path.isfile(logo_path):
+        app.setWindowIcon(QIcon(logo_path))
     app_font = app.font()
     logger = get_logger("main")
     logger.debug(
@@ -86,7 +89,7 @@ def main():
         meter=meter,
         app_config=config
     )
-    window.show()
+    window.showMaximized()
 
     # Enter Qt event loop
     sys.exit(app.exec())

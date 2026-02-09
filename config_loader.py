@@ -48,8 +48,8 @@ def load_config(path: str = None) -> Dict:
     """
     Loads and validates the application configuration.
 
-    :param path: Path to config.json. If None, defaults to the 'config.json'
-                 located in the same directory as this script.
+    :param path: Path to config.json. If None, uses config.json in the same
+                 directory as the script (development) or the executable (frozen).
     :return: Validated configuration dictionary
     :raises ConfigError: if config is missing or invalid
     """
