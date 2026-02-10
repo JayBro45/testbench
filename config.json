@@ -1,7 +1,7 @@
 {
   "app_name": "IPS Testing Software",
   "version": "2.1.0",
-  "default_test_mode": "AVR",
+  "default_test_mode": "SMR",
   "site": {
     "site_id": "SITE_001",
     "site_name": "Testing Floor"
@@ -15,7 +15,6 @@
     "timeout_ms": 3000,
     "retry_count": 3,
     "mock": true
-    
   },
   "logging": {
     "level": "INFO"

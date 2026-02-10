@@ -217,7 +217,11 @@ class HiokiPW3336:
             return
 
         if not self.inst:
-            raise RuntimeError("Meter not connected")
+            self.logger.info(
+                "SMR mode selected but meter not connected yet; "
+                "configuration will be applied after connection."
+            )
+            return
 
         # Set DC mode
         self.inst.write(":WIRing TYPE1")

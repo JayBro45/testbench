@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QGroupBox, QLabel, QPushButton, QComboBox,
     QTableWidget, QLineEdit, QFrame, QStatusBar, QHeaderView,
-    QStyle, QSizePolicy, QTableWidgetItem, QMessageBox, QInputDialog, QMenu
+    QStyle, QSizePolicy, QTableWidgetItem, QMessageBox, QInputDialog, QMenu, QSplitter
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
@@ -751,7 +751,8 @@ class MainWindow(QMainWindow):
 
         # 2. Live Readings Section (fixed height so AVR/SMR switch doesn't resize window)
         live_group = QGroupBox("2. Observe Real-Time Readings")
-        live_group.setMinimumHeight(220)
+        # Give enough vertical room for the larger SMR panel
+        live_group.setMinimumHeight(280)
         live_layout = QVBoxLayout(live_group)
         self.panels_layout = QHBoxLayout()
         self.panels_layout.setSpacing(12)
@@ -765,51 +766,59 @@ class MainWindow(QMainWindow):
         
         live_layout.addLayout(self.panels_layout)
         top_layout.addWidget(live_group, stretch=1)
-        main_layout.addLayout(top_layout)
+        main_layout.addLayout(top_layout, stretch=0)
 
-        # 3. Grid Section
+        # 3. Grid Section (Adaptive)
         grid_group = QGroupBox("3. Save Readings")
         grid_layout = QVBoxLayout(grid_group)
-        
-        # Grid columns are set dynamically by strategy
+
+        # Splitter to adapt table and buttons
+        splitter = QSplitter(Qt.Vertical)
+
+        # --- Table ---
         self.table = QTableWidget()
-        self.table.setMinimumHeight(250)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
-        grid_layout.addWidget(self.table)
 
-        # Grid Action Buttons
-        grid_btn_sep = QFrame()
-        grid_btn_sep.setFrameShape(QFrame.HLine)
-        grid_btn_sep.setFrameShadow(QFrame.Sunken)
-        grid_btn_sep.setLineWidth(1)
-        grid_btn_sep.setStyleSheet("QFrame { margin: 6px 0; }")
-        grid_layout.addWidget(grid_btn_sep)
+        splitter.addWidget(self.table)
 
-        # Grid Action Buttons (dedicated row with spacing)
-        grid_btns_layout = QHBoxLayout()
-        grid_btns_layout.setSpacing(12)
-        grid_btns_layout.setContentsMargins(0, 8, 0, 4)
+        # --- Buttons toolbar ---
+        buttons_frame = QFrame()
+        buttons_frame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        buttons_frame.setMinimumHeight(48)
+        buttons_layout = QHBoxLayout(buttons_frame)
+        buttons_layout.setSpacing(12)
+        buttons_layout.setContentsMargins(8, 6, 8, 6)
+
         self.clear_btn = QPushButton("CLEAR GRID")
         self._style_button(self.clear_btn, "#C62828", QStyle.SP_BrowserReload)
         self.clear_btn.clicked.connect(self.clear_entire_grid)
-        
+
         self.save_btn = QPushButton("SAVE READING")
         self._style_button(self.save_btn, "#1565C0", QStyle.SP_DialogSaveButton)
         self.save_btn.clicked.connect(self.save_current_reading)
-        
-        grid_btns_layout.addWidget(self.clear_btn)
-        grid_btns_layout.addStretch()
-        grid_btns_layout.addWidget(self.save_btn)
-        grid_layout.addLayout(grid_btns_layout)
-        main_layout.addWidget(grid_group)
+
+        buttons_layout.addWidget(self.clear_btn)
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.save_btn)
+
+        splitter.addWidget(buttons_frame)
+
+        # Initial size ratio: table gets most space
+        splitter.setSizes([400, 80])
+        splitter.setChildrenCollapsible(False)
+
+        grid_layout.addWidget(splitter)
+        main_layout.addWidget(grid_group, stretch=1)
+
 
         # 4. Export Section
         export_group = QGroupBox("4. Export Report")
+        export_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         export_layout = QVBoxLayout(export_group)
         fields = QHBoxLayout()
         
@@ -840,12 +849,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
     def _style_button(self, button: QPushButton, color: str, icon_std):
-        """Applies a consistent modern style to buttons."""
+        """Applies a consistent modern style to buttons (compact size)."""
         icon = self.style().standardIcon(icon_std)
         button.setIcon(icon)
-        button.setIconSize(QSize(24, 24))
-        button.setMinimumHeight(45)
-        button.setMinimumWidth(130)
+        button.setIconSize(QSize(18, 18))
+        button.setMinimumHeight(32)
+        button.setMinimumWidth(100)
         button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         button.setCursor(Qt.PointingHandCursor)
         
@@ -853,11 +862,11 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: {color}; 
                 color: white;
-                font-size: 14px; 
+                font-size: 12px; 
                 font-weight: bold; 
                 border: none;
-                border-radius: 6px; 
-                padding: 5px 15px; 
+                border-radius: 4px; 
+                padding: 4px 10px; 
                 text-align: center;
             }}
             QPushButton:hover {{
