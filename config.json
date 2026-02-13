@@ -1,6 +1,6 @@
 {
   "app_name": "IPS Testing Software",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "default_test_mode": "SMR",
   "site": {
     "site_id": "SITE_001",
@@ -14,7 +14,7 @@
     "port": 3300,
     "timeout_ms": 3000,
     "retry_count": 3,
-    "mock": true
+    "mock": false
   },
   "logging": {
     "level": "INFO"

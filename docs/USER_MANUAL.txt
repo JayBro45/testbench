@@ -78,6 +78,35 @@ Settings (Configuration → Settings)
 
   Settings are saved when you click OK and are stored in config.json next to the exe.
 
+Changing the PC IPv4 Address (for meter connection)
+---------------------------------------------------
+
+If the meter is on a fixed IP (for example 192.168.1.10) and there is no DHCP server,
+you may need to set a **manual IPv4 address** on your laptop so that both the PC and
+the meter are in the same subnet.
+
+  Example:
+    - Meter IP: 192.168.1.10
+    - PC IPv4: 192.168.1.20
+    - Subnet mask: 255.255.255.0
+
+Steps on Windows 10 / 11:
+  1. Connect the network cable between the Hioki meter and your laptop (direct or via switch).
+  2. On your PC, open the Start menu and type "Network & Internet settings" and open it.
+  3. Click "Change adapter options" (or "Advanced network settings" → "More network adapter options").
+  4. Right‑click on the network adapter you are using for the meter connection (for example, "Ethernet") and select "Properties".
+  5. In the list, select "Internet Protocol Version 4 (TCP/IPv4)" and click "Properties".
+  6. Select "Use the following IP address".
+  7. Enter an IP address in the same range as the meter (for example 192.168.1.20) and subnet mask 255.255.255.0. Leave Default gateway blank or set as needed by your IT.
+  8. Leave DNS settings as they are, or set as per your IT policy (not required for the meter to work).
+  9. Click "OK", then "Close" to apply the settings.
+  10. Open the IPS Testing Software and ensure the meter IP in Configuration → Settings matches the meter’s IP (for example 192.168.1.10).
+
+To revert back to automatic settings (DHCP):
+  1. Repeat steps 2–5 above.
+  2. In the IPv4 Properties window, select "Obtain an IP address automatically".
+  3. Click "OK" and close all dialogs.
+
 config.json (Advanced)
   You can edit config.json in a text editor to change:
   - app_name — Name shown in the window title and header.

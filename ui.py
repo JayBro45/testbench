@@ -193,7 +193,12 @@ class MainWindow(QMainWindow):
         }
 
         # 5. Window Setup
-        self.setWindowTitle(self.config.get("app_name", "Test Bench Software"))
+        app_name = self.config.get("app_name", "Test Bench Software")
+        app_version = self.config.get("version")
+        if app_version:
+            self.setWindowTitle(f"{app_name} v{app_version}")
+        else:
+            self.setWindowTitle(app_name)
         self.setMinimumSize(1000, 650)
         self.resize(1200, 750)
         logo_path = _logo_path()
