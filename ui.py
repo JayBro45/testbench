@@ -73,7 +73,7 @@ class ReadingDisplay(QFrame):
         super().__init__()
         self.unit = unit
         
-        # Frame Styling
+        # Frame Styling (compact)
         self.setFrameStyle(QFrame.Box)
         self.setStyleSheet("""
             QFrame { 
@@ -82,19 +82,19 @@ class ReadingDisplay(QFrame):
             }
         """)
 
-        # Layout Setup
+        # Layout Setup (reduced vertical padding to save height)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setContentsMargins(6, 2, 6, 2)
 
         # Label Component
         self.label = QLabel(label)
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("font-size: 10px; color: #555;")
+        self.label.setStyleSheet("font-size: 9px; color: #555;")
 
         # Value Component
         self.value = QLabel("--")
         self.value.setAlignment(Qt.AlignCenter)
-        self.value.setStyleSheet("font-size: 18px; font-weight: bold; color: #C44;")
+        self.value.setStyleSheet("font-size: 16px; font-weight: bold; color: #C44;")
 
         layout.addWidget(self.label)
         layout.addWidget(self.value)
@@ -142,10 +142,14 @@ class ReadingsPanel(QGroupBox):
         
         self.displays = {}
 
-        # Dynamically create widgets based on 'items' list
+        # Dynamically create widgets based on 'items' list.
+        # Use up to 6 columns per row to spread readings horizontally
+        # and keep the panel relatively shallow vertically.
+        columns = 6 if len(items) >= 6 else max(1, len(items))
+
         for i, (key, label, unit) in enumerate(items):
             widget = ReadingDisplay(label, unit)
-            row, col = divmod(i, 2)
+            row, col = divmod(i, columns)
             layout.addWidget(widget, row, col)
             self.displays[key] = widget
 
@@ -210,8 +214,13 @@ class MainWindow(QMainWindow):
         default_mode = self.config.get("default_test_mode", "AVR")
         if default_mode not in self.strategies:
             default_mode = "AVR"
-        self.mode_selector.setCurrentText(default_mode)
+        # Set the current strategy BEFORE changing the combo box text,
+        # and block signals so change_test_mode is not triggered during
+        # startup before current_strategy exists.
         self.current_strategy = self.strategies[default_mode]
+        self.mode_selector.blockSignals(True)
+        self.mode_selector.setCurrentText(default_mode)
+        self.mode_selector.blockSignals(False)
         self.apply_strategy(default_mode)
         
         # 8. Initial State
@@ -429,14 +438,11 @@ class MainWindow(QMainWindow):
         # Re-instantiate Panels
         self.input_panel = ReadingsPanel("Input Readings", input_items)
         self.output_panel = ReadingsPanel("Output Readings", output_items)
-        
+
+        # Arrange input/output horizontally; the Start button now lives
+        # in the top controls row instead of between the panels.
         self.panels_layout.addWidget(self.input_panel)
         self.panels_layout.addWidget(self.output_panel)
-        
-        btn_layout = QVBoxLayout()
-        btn_layout.setAlignment(Qt.AlignCenter)
-        btn_layout.addWidget(self.start_btn)
-        self.panels_layout.addLayout(btn_layout)
 
     def save_current_reading(self):
         """
@@ -726,49 +732,53 @@ class MainWindow(QMainWindow):
         central.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(15)
+        main_layout.setSpacing(12)
 
-        # --- Top Section Container ---
-        top_layout = QHBoxLayout()
-        top_layout.setSpacing(16)
+        # --------------------------------------------------------------
+        # 1. Top Controls: Test Mode selector + Start button
+        # --------------------------------------------------------------
+        controls_group = QGroupBox("1. Test Controls")
+        controls_layout = QHBoxLayout(controls_group)
+        controls_layout.setSpacing(12)
 
-        # 1. Test Mode Selection (Refactored from Radio Buttons to ComboBox)
-        test_group = QGroupBox("1. Select Test Mode")
-        test_group.setMinimumWidth(240)
-        test_group.setMaximumWidth(280)
-        test_layout = QVBoxLayout(test_group)
-        
+        mode_label = QLabel("Test Mode:")
         self.mode_selector = QComboBox()
         self.mode_selector.addItems(["AVR", "SMR"])
-        self.mode_selector.setMinimumHeight(40)
-        self.mode_selector.setStyleSheet("font-size: 14px; font-weight: bold; padding: 5px;")
-        
+        self.mode_selector.setMinimumHeight(32)
+        self.mode_selector.setStyleSheet("font-size: 12px; font-weight: bold; padding: 2px 6px;")
         # Connect change event
         self.mode_selector.currentTextChanged.connect(self.change_test_mode)
-        
-        test_layout.addWidget(self.mode_selector)
-        top_layout.addWidget(test_group)
 
-        # 2. Live Readings Section (fixed height so AVR/SMR switch doesn't resize window)
-        live_group = QGroupBox("2. Observe Real-Time Readings")
-        # Give enough vertical room for the larger SMR panel
-        live_group.setMinimumHeight(280)
-        live_layout = QVBoxLayout(live_group)
-        self.panels_layout = QHBoxLayout()
-        self.panels_layout.setSpacing(12)
-        
-        # Panels will be injected here dynamically by apply_strategy()
-        
-        # Start Button (Created once, re-added dynamically)
+        # Start Button (created once, lives in the top controls row)
         self.start_btn = QPushButton("START TEST")
         self._style_button(self.start_btn, "#2E7D32", QStyle.SP_MediaPlay)
         self.start_btn.clicked.connect(self.toggle_polling)
-        
-        live_layout.addLayout(self.panels_layout)
-        top_layout.addWidget(live_group, stretch=1)
-        main_layout.addLayout(top_layout, stretch=0)
 
-        # 3. Grid Section (Adaptive)
+        controls_layout.addWidget(mode_label)
+        controls_layout.addWidget(self.mode_selector)
+        controls_layout.addStretch()
+        controls_layout.addWidget(self.start_btn)
+
+        main_layout.addWidget(controls_group, stretch=0)
+
+        # --------------------------------------------------------------
+        # 2. Live Readings Section (below controls, more horizontal space)
+        # --------------------------------------------------------------
+        live_group = QGroupBox("2. Live Readings")
+        # Keep this section relatively shallow so the grid can show more
+        # rows, now that readings are spread horizontally (6 per row).
+        live_group.setMinimumHeight(150)
+        live_layout = QVBoxLayout(live_group)
+        self.panels_layout = QHBoxLayout()
+        self.panels_layout.setSpacing(12)
+
+        # Panels will be injected here dynamically by apply_strategy()
+        live_layout.addLayout(self.panels_layout)
+        main_layout.addWidget(live_group, stretch=0)
+
+        # --------------------------------------------------------------
+        # 3. Grid Section (Adaptive, gets most of the vertical space)
+        # --------------------------------------------------------------
         grid_group = QGroupBox("3. Save Readings")
         grid_layout = QVBoxLayout(grid_group)
 
