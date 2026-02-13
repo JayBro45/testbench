@@ -387,6 +387,11 @@ class MainWindow(QMainWindow):
         self.table.setColumnCount(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         self.table.setRowCount(0) # Clear previous test data
+        # Allow double-click edit for SMR (PSO column is editable); AVR stays read-only
+        if mode_name == "SMR":
+            self.table.setEditTriggers(QTableWidget.DoubleClicked)
+        else:
+            self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         
         # 2. Update Panels
         self._rebuild_readings_panels()
@@ -464,12 +469,15 @@ class MainWindow(QMainWindow):
             return
         
         # Populate Table
+        headers = self.current_strategy.grid_headers
         row = self.table.rowCount()
         self.table.insertRow(row)
         for col, val in enumerate(values):
             item = QTableWidgetItem(str(val))
             item.setTextAlignment(Qt.AlignCenter)
-            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            # Keep PSO (mV) editable so user can fill during test; others read-only
+            if col < len(headers) and headers[col] != "PSO (mV)":
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, col, item)
             self.table.scrollToBottom()
 
@@ -477,6 +485,31 @@ class MainWindow(QMainWindow):
         # Access name property safely
         mode = getattr(self.current_strategy, "name", "Unknown Mode")
         self.logger.info(f"Captured Row {row + 1} ({mode})")
+
+    def _handle_table_item_changed(self, item: QTableWidgetItem):
+        """
+        Ensures that the PSO (mV) column never remains truly empty.
+        If the user clears a PSO cell, it reverts back to '---'.
+        """
+        # Only relevant when we are in SMR mode
+        if self.mode_selector.currentText() != "SMR":
+            return
+
+        col = item.column()
+        headers = self.current_strategy.grid_headers
+
+        # Safety checks
+        if col >= len(headers):
+            return
+        if headers[col] != "PSO (mV)":
+            return
+
+        # Normalize text; if cleared, restore placeholder
+        text = (item.text() or "").strip()
+        if text == "":
+            self.table.blockSignals(True)
+            item.setText("---")
+            self.table.blockSignals(False)
 
     def delete_selected_rows(self):
         """Deletes currently selected rows from the grid."""
@@ -793,6 +826,7 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
+        self.table.itemChanged.connect(self._handle_table_item_changed)
 
         splitter.addWidget(self.table)
 

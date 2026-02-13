@@ -66,7 +66,7 @@ def generate_smr_submission_excel(
         "V (in)", "I (in)", "P (in)", "PF (in)",
         "Vthd % (in)", "Ithd % (in)",
         "V (out)", "I (out)", "P (out)",
-        "Ripple (out)", "Efficiency"
+        "Ripple (out)", "Efficiency", "PSO (mV)"
     ]
     
     # Filter rows to just these columns, handling missing keys gracefully
@@ -99,7 +99,8 @@ def generate_smr_submission_excel(
             "align": "center",
             "valign": "vcenter",
             "border": 1,
-            "font_size": 15
+            "font_size": 15,
+            "font_name": "Times New Roman"
         })
 
         fmt_header = workbook.add_format({
@@ -108,14 +109,16 @@ def generate_smr_submission_excel(
             "valign": "vcenter",
             "border": 1,
             "font_size": 10,
-            "bg_color": "FFFF00"
+            "bg_color": "FFFF00",
+            "font_name": "Times New Roman"
         })
 
         fmt_cell = workbook.add_format({
             "align": "center",
             "valign": "vcenter",
             "border": 1,
-            "font_size": 11  
+            "font_size": 11,
+            "font_name": "Times New Roman"
         })
 
         fmt_left_bold = workbook.add_format({
@@ -123,7 +126,8 @@ def generate_smr_submission_excel(
             "align": "left",
             "valign": "vcenter",
             "border": 1,
-            "font_size": 10
+            "font_size": 10,
+            "font_name": "Times New Roman"
         })
 
         fmt_right_bold = workbook.add_format({
@@ -131,14 +135,14 @@ def generate_smr_submission_excel(
             "align": "right", 
             "valign": "vcenter",
             "border": 1,      
-            "font_size": 10
+            "font_size": 10,
+            "font_name": "Times New Roman"
         })
 
         # ---------------------------------------------------------------------
         # Column Widths
         # ---------------------------------------------------------------------
-        # Adjust widths slightly for SMR specific data lengths
-        widths = [10, 10, 10, 8, 10, 10, 10, 10, 10, 12, 11]
+        widths = [10] * 12
         for col, w in enumerate(widths):
             worksheet.set_column(col, col, w)
 
@@ -149,16 +153,16 @@ def generate_smr_submission_excel(
         worksheet.merge_range("A1:C1", serial_text, fmt_left_bold)
         
         # Title (D1:H1) - Adjusted range for SMR column count
-        # Total columns = 11 (Indices 0-10, A-K). 
-        # Center title roughly in the middle (D-G or D-H)
+        # Total columns = 12 (Indices 0-11, A-L).
+        # Center title roughly in the middle (D-H)
         worksheet.merge_range("D1:H1", "SMR TEST REPORT", fmt_title)
         
         # Date Label (I1)
         worksheet.write("I1", "Date ", fmt_right_bold)
         
-        # Date Value (J1:K1)
+        # Date Value (J1:L1)
         worksheet.merge_range(
-            "J1:K1",
+            "J1:L1",
             datetime.now().strftime("%d-%m-%Y"),
             fmt_cell
         )
@@ -172,14 +176,14 @@ def generate_smr_submission_excel(
             "Vac (in)", "Iac (in)", "Pac (in)", "PF (in)",
             "Vthd% (in)", "Ithd% (in)",
             "Vdc (out)", "Idc (out)", "Pdc (out)",
-            "Ripple", "Efficiency"
+            "Ripple", "Efficiency", "PSO"
         ]
 
         units = [
-            "V", "A", "W", "pf",
+            "V", "A", "W", "PF",
             "%", "%",
             "V", "A", "W",
-            "mV", "%"
+            "mV", "%", "mV"
         ]
 
         # Header row
@@ -199,7 +203,7 @@ def generate_smr_submission_excel(
         total_data_rows = len(df)        
         for r, row in enumerate(df.itertuples(index=False), start=3):
             # Set the row height for the current row dynamically
-            worksheet.set_row(r, 22)        
+            worksheet.set_row(r, 14)        
             for c, val in enumerate(row):
                 worksheet.write(r, c, val, fmt_cell)
 
@@ -208,9 +212,8 @@ def generate_smr_submission_excel(
         # ---------------------------------------------------------------------
         worksheet.set_paper(9)  # A4
         worksheet.set_landscape()
-        worksheet.center_horizontally()
-        worksheet.center_vertically()
+        worksheet.center_horizontally()        
         worksheet.fit_to_pages(1, 1)
-        worksheet.set_margins(left=0.7, right=0.7, top=0.5, bottom=2)
-        # Print area covers all columns (A to K)
-        worksheet.print_area(f"A1:K{3 + len(df)}")
+        
+        worksheet.set_margins(left=0.7, right=0.7, top=1.1 , bottom=1.5)
+        worksheet.print_area(f"A1:L{3 + total_data_rows}")

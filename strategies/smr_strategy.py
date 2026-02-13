@@ -45,7 +45,7 @@ class SMRStrategy(TestStrategy):
             "V (in)", "I (in)", "P (in)", "PF (in)", 
             "Vthd % (in)", "Ithd % (in)", 
             "V (out)", "I (out)", "P (out)", 
-            "Ripple (out)", "Efficiency"
+            "Ripple (out)", "Efficiency", "PSO (mV)"
         ]
 
     @property
@@ -95,7 +95,8 @@ class SMRStrategy(TestStrategy):
             f"{safe_float('iout_dc'):.2f}",
             f"{safe_float('pout'):.2f}",
             f"{safe_float('ripple'):.0f}",
-            f"{safe_float('efficiency'):.2f}"
+            f"{safe_float('efficiency'):.2f}",
+            "---"  # PSO (mV) - editable by user during test
         ]
 
     def validate(self, rows: List[Dict[str, Any]]) -> Any:
