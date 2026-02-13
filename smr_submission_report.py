@@ -22,6 +22,7 @@ Layout Rules
 - Section C: Data rows
 """
 
+import os
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -34,7 +35,8 @@ import pandas as pd
 
 def generate_smr_submission_excel(
     grid_rows: List[Dict[str, Any]],
-    output_path: str
+    output_path: str,
+    serial_number: str | None = None
 ) -> None:
     """
     Generate the official SMR submission Excel report.
@@ -46,7 +48,15 @@ def generate_smr_submission_excel(
 
     output_path : str
         Full filesystem path for the generated Excel file.
+
+    serial_number : str | None
+        Serial number to display in the report header. If None, derived from
+        the output path (folder name used during export).
     """
+
+    # Derive serial from export folder name if not provided
+    if serial_number is None:
+        serial_number = os.path.basename(os.path.dirname(output_path)) or ""
 
     # -------------------------------------------------------------------------
     # Build DataFrame
@@ -135,8 +145,8 @@ def generate_smr_submission_excel(
         # ---------------------------------------------------------------------
         # SECTION A — Header
         # ---------------------------------------------------------------------
-        # Serial No (A1:C1)
-        worksheet.merge_range("A1:C1", "Serial No. :", fmt_left_bold)
+        serial_text = f"Serial No. : {serial_number}" if serial_number else "Serial No. :"
+        worksheet.merge_range("A1:C1", serial_text, fmt_left_bold)
         
         # Title (D1:H1) - Adjusted range for SMR column count
         # Total columns = 11 (Indices 0-10, A-K). 

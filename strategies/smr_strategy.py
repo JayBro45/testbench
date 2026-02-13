@@ -140,8 +140,10 @@ class SMRStrategy(TestStrategy):
 
         res_path = os.path.join(final_output_dir, f"{prefix}_SMR_RESULT.xlsx")
         sub_path = os.path.join(final_output_dir, f"{prefix}_SMR_SUBMISSION.xlsx")
-        
+
+        # Serial number = export folder name (name user enters when saving)
+        serial = report_folder
         generate_smr_excel_report(rows, res_path)
-        generate_smr_submission_excel(rows, sub_path)
+        generate_smr_submission_excel(rows, sub_path, serial_number=serial)
 
         return final_output_dir
