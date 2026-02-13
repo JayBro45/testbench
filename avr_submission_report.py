@@ -22,6 +22,7 @@ Layout Rules
 - Section C: Data rows (any number, usually 6 rows)
 """
 
+import os
 from datetime import datetime
 from typing import List, Dict
 
@@ -34,7 +35,8 @@ import pandas as pd
 
 def generate_avr_submission_excel(
     grid_rows: List[Dict[str, float | str]],
-    output_path: str
+    output_path: str,
+    serial_number: str | None = None
 ) -> None:
     """
     Generate the official AVR submission Excel report.
@@ -47,6 +49,10 @@ def generate_avr_submission_excel(
     output_path : str
         Full filesystem path for the generated Excel file.
 
+    serial_number : str | None
+        Serial number to display in the report header. If None, derived from
+        the output path (folder name used during export).
+
     Raises
     ------
     ValueError
@@ -55,6 +61,10 @@ def generate_avr_submission_excel(
 
     if len(grid_rows) == 0:
         raise ValueError("Submission report requires at least 1 row")
+
+    # Derive serial from export folder name if not provided
+    if serial_number is None:
+        serial_number = os.path.basename(os.path.dirname(output_path)) or ""
 
     # -------------------------------------------------------------------------
     # Build DataFrame (Rows 5–10)
@@ -131,7 +141,8 @@ def generate_avr_submission_excel(
         # ---------------------------------------------------------------------
         # SECTION A — Header
         # ---------------------------------------------------------------------
-        worksheet.merge_range("A1:C1", "Serial No. :", fmt_left_bold)
+        serial_text = f"Serial No. : {serial_number}" if serial_number else "Serial No. :"
+        worksheet.merge_range("A1:C1", serial_text, fmt_left_bold)
         worksheet.merge_range("D1:H1", "AVR TEST REPORT", fmt_title)
         worksheet.write("I1", "Date ", fmt_right_bold)
         worksheet.merge_range(

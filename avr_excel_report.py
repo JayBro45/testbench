@@ -22,7 +22,7 @@ Strict Guarantees
 - Acceptance logic is NOT implemented here
 - Column order, names, and layout are preserved
 - No Excel formatting changes beyond legacy behavior
-- Exactly 6 rows are required (AVR-specific constraint)
+- Accepts any number of rows (acceptance evaluation requires at least 3)
 
 Dependencies
 ------------
@@ -61,7 +61,7 @@ def generate_avr_excel_report(
     ----------
     grid_rows : List[Dict[str, float | str]]
         Final grid rows captured from the UI.
-        Exactly 6 rows are required for AVR evaluation.
+        Accepts any number of rows; acceptance evaluation requires at least 3.
 
     output_path : str
         Full filesystem path where the Excel file will be written.
@@ -69,22 +69,14 @@ def generate_avr_excel_report(
     Raises
     ------
     ValueError
-        If the number of grid rows is not exactly 6.
+        If the number of grid rows is zero.
     """
 
     # -------------------------------------------------------------------------
     # Validation
     # -------------------------------------------------------------------------
-    if len(grid_rows) != 6:
-        raise ValueError("AVR report generation requires exactly 6 rows")
-
-    # -------------------------------------------------------------------------
-    # Run Acceptance Engine (CRITICAL FIX)
-    # -------------------------------------------------------------------------
-    # We must evaluate the RAW rows. Converting to DataFrame/numeric first
-    # would turn "--" strings into NaN, breaking the engine's exclusion logic.
-    engine = AVRAcceptanceEngine(grid_rows)
-    result = engine.evaluate()
+    if len(grid_rows) == 0:
+        raise ValueError("AVR report generation requires at least 1 row")
 
     # -------------------------------------------------------------------------
     # Convert Grid → DataFrame (For Excel Output)
@@ -94,6 +86,15 @@ def generate_avr_excel_report(
     # Enforce numeric conversion for the Excel file itself (legacy behavior)
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # -------------------------------------------------------------------------
+    # Run Acceptance Engine (only when enough rows for full evaluation)
+    # -------------------------------------------------------------------------
+    # Need at least 3 rows (row 2 used for rated power/current reference).
+    result = None
+    if len(grid_rows) >= 3:
+        engine = AVRAcceptanceEngine(grid_rows)
+        result = engine.evaluate()
 
     # -------------------------------------------------------------------------
     # Write Excel
@@ -123,63 +124,73 @@ def generate_avr_excel_report(
             "bold": True
         })
 
-        # ---------------------------------------------------------------------
-        # Apply FAIL (Red) Cells
-        # ---------------------------------------------------------------------
-        for col_name, row_ids in result.invalid_cells.items():
-            if not row_ids:
-                continue
+        if result is not None:
+            # ---------------------------------------------------------------------
+            # Apply FAIL (Red) Cells
+            # ---------------------------------------------------------------------
+            for col_name, row_ids in result.invalid_cells.items():
+                if not row_ids:
+                    continue
 
-            col_idx = df.columns.get_loc(col_name)
-            col_letter = xl_col_to_name(col_idx)
+                col_idx = df.columns.get_loc(col_name)
+                col_letter = xl_col_to_name(col_idx)
 
-            for row_id in row_ids:
-                worksheet.conditional_format(
-                    f"{col_letter}1:{col_letter}{len(df) + 1}",
-                    {
-                        "type": "cell",
-                        "criteria": "equal to",
-                        "value": f'${col_letter}${row_id}',
-                        "format": fmt_fail,
-                    },
-                )
+                for row_id in row_ids:
+                    worksheet.conditional_format(
+                        f"{col_letter}1:{col_letter}{len(df) + 1}",
+                        {
+                            "type": "cell",
+                            "criteria": "equal to",
+                            "value": f'${col_letter}${row_id}',
+                            "format": fmt_fail,
+                        },
+                    )
 
-        # ---------------------------------------------------------------------
-        # Apply ABNORMAL (Amber) Cells
-        # ---------------------------------------------------------------------
-        for col_name, row_ids in result.abnormal_cells.items():
-            if not row_ids:
-                continue
+            # ---------------------------------------------------------------------
+            # Apply ABNORMAL (Amber) Cells
+            # ---------------------------------------------------------------------
+            for col_name, row_ids in result.abnormal_cells.items():
+                if not row_ids:
+                    continue
 
-            col_idx = df.columns.get_loc(col_name)
-            col_letter = xl_col_to_name(col_idx)
+                col_idx = df.columns.get_loc(col_name)
+                col_letter = xl_col_to_name(col_idx)
 
-            for row_id in row_ids:
-                worksheet.conditional_format(
-                    f"{col_letter}1:{col_letter}{len(df) + 1}",
-                    {
-                        "type": "cell",
-                        "criteria": "equal to",
-                        "value": f'${col_letter}${row_id}',
-                        "format": fmt_abnormal,
-                    },
-                )
+                for row_id in row_ids:
+                    worksheet.conditional_format(
+                        f"{col_letter}1:{col_letter}{len(df) + 1}",
+                        {
+                            "type": "cell",
+                            "criteria": "equal to",
+                            "value": f'${col_letter}${row_id}',
+                            "format": fmt_abnormal,
+                        },
+                    )
 
-        # ---------------------------------------------------------------------
-        # Summary Block (Merged, Legacy Behavior)
-        # ---------------------------------------------------------------------
-        start_row = len(df) + 2
-        summary_lines = result.summary.count("\n") + 1
+            # ---------------------------------------------------------------------
+            # Summary Block (Merged, Legacy Behavior)
+            # ---------------------------------------------------------------------
+            start_row = len(df) + 2
+            summary_lines = result.summary.count("\n") + 1
 
-        summary_format = (
-            fmt_summary_pass if result.passed else fmt_summary_fail
-        )
+            summary_format = (
+                fmt_summary_pass if result.passed else fmt_summary_fail
+            )
 
-        worksheet.merge_range(
-            start_row,
-            0,
-            start_row + summary_lines,
-            len(df.columns) - 1,
-            result.summary,
-            summary_format,
-        )
+            worksheet.merge_range(
+                start_row,
+                0,
+                start_row + summary_lines,
+                len(df.columns) - 1,
+                result.summary,
+                summary_format,
+            )
+        else:
+            # Fewer than 3 rows: add informational note
+            start_row = len(df) + 2
+            note = "Data exported. Acceptance evaluation requires at least 3 readings."
+            fmt_note = workbook.add_format({"text_wrap": True})
+            worksheet.merge_range(
+                start_row, 0, start_row, len(df.columns) - 1,
+                note, fmt_note
+            )

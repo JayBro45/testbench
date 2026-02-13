@@ -123,6 +123,8 @@ class AVRStrategy(TestStrategy):
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
 
         generate_avr_excel_report(rows, eng_path)
-        generate_avr_submission_excel(rows, sub_path)
+        # Serial number = export folder name (name user enters when saving)
+        serial = os.path.basename(output_dir)
+        generate_avr_submission_excel(rows, sub_path, serial_number=serial)
 
         return output_dir
