@@ -19,7 +19,7 @@ Layout Rules
 ------------
 - Section A: Report metadata (title, serial, date)
 - Section B: Two-row table header
-- Section C: Exactly 6 data rows
+- Section C: Data rows (any number, usually 6 rows)
 """
 
 from datetime import datetime
@@ -42,7 +42,7 @@ def generate_avr_submission_excel(
     Parameters
     ----------
     grid_rows : List[Dict[str, float | str]]
-        Exactly 6 rows captured from the UI grid.
+        Rows captured from the UI grid.
 
     output_path : str
         Full filesystem path for the generated Excel file.
@@ -50,11 +50,11 @@ def generate_avr_submission_excel(
     Raises
     ------
     ValueError
-        If grid_rows does not contain exactly 6 rows.
+        If grid_rows is empty.
     """
 
-    if len(grid_rows) != 6:
-        raise ValueError("Submission report requires exactly 6 rows")
+    if len(grid_rows) == 0:
+        raise ValueError("Submission report requires at least 1 row")
 
     # -------------------------------------------------------------------------
     # Build DataFrame (Rows 5–10)
@@ -174,12 +174,13 @@ def generate_avr_submission_excel(
         # ---------------------------------------------------------------------
         # SECTION C — Data Rows
         # ---------------------------------------------------------------------
+        last_data_row = 3 + len(df) - 1
         for r, row in enumerate(df.itertuples(index=False), start=3):
             for c, val in enumerate(row):
                 worksheet.write(r, c, val, fmt_cell)
 
         # Larger row height for readability
-        for r in range(3, 9):
+        for r in range(3, last_data_row + 1):
             worksheet.set_row(r, 22)
 
         # ---------------------------------------------------------------------
@@ -191,4 +192,4 @@ def generate_avr_submission_excel(
         worksheet.center_vertically()
         worksheet.fit_to_pages(1,1)
         worksheet.set_margins(left=0.7, right=0.7, top=0.5, bottom=2)
-        worksheet.print_area("A1:K9")
+        worksheet.print_area(f"A1:K{last_data_row + 1}")

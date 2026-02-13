@@ -112,10 +112,10 @@ class AVRStrategy(TestStrategy):
 
     def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> str:
         """
-        Generates AVR reports.
+        Generates AVR reports. Accepts any number of readings.
         """
-        if len(rows) != 6:
-            raise ValueError(f"AVR Reports require exactly 6 rows. Current: {len(rows)}")
+        if len(rows) == 0:
+            raise ValueError("AVR Reports require at least 1 row")
 
         os.makedirs(output_dir, exist_ok=True)
 

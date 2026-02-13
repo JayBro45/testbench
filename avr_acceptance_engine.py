@@ -17,7 +17,7 @@ This module implements the **exact acceptance logic** used in the legacy
 Scope & Assumptions
 -------------------
 - Applicable ONLY to Unidirectional AVR systems
-- Exactly 6 test rows are required
+- At least 3 test rows are required (row 3 used for rated power/current)
 - Grid data is assumed to be validated and numeric where required
 - Row numbering in results is Excel-style (1-based, header at row 1)
 
@@ -48,8 +48,8 @@ AC_INPUT_VOLT_TOL = 5       # Input voltage tolerance
 AC_OUTPUT_VOLT_TOL = 1     # Output voltage tolerance
 LOAD_CURRENT_TOL = 10      # Load current tolerance
 
-# Mandatory number of test rows
-EXPECTED_ROWS = 6
+# Minimum rows for acceptance evaluation (row 2 used for rated power/current)
+MIN_ROWS = 3
 
 
 # =============================================================================
@@ -113,10 +113,10 @@ class AVRAcceptanceEngine:
         Raises
         ------
         ValueError
-            If the number of rows is not exactly 6.
+            If the number of rows is less than 3.
         """
-        if len(grid_rows) != EXPECTED_ROWS:
-            raise ValueError("AVR evaluation requires exactly 6 rows")
+        if len(grid_rows) < MIN_ROWS:
+            raise ValueError("AVR evaluation requires at least 3 rows")
 
         self.rows = grid_rows
         self.rated_voltage = RATED_OUTPUT_VOLTAGE
