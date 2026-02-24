@@ -261,7 +261,8 @@ class MainWindow(QMainWindow):
         self.mode_selector.setEnabled(False)
 
         # Create and Configure Worker
-        self.polling_worker = MeterPollingWorker(self.meter, interval_sec=1.0)
+        poll_interval = self.config.get("meter", {}).get("poll_interval_sec", 0.25)
+        self.polling_worker = MeterPollingWorker(self.meter, interval_sec=poll_interval)
         
         # Connect Signals
         self.polling_worker.data_ready.connect(self.update_live_readings)

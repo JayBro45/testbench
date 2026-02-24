@@ -25,7 +25,7 @@ including intermittent communication failures.
 
 from PySide6.QtCore import QThread, Signal, QMutex, QMutexLocker
 import time
-from logger import get_logger  # <--- NEW IMPORT
+from logger import get_logger  
 
 
 class MeterPollingWorker(QThread):
@@ -70,7 +70,7 @@ class MeterPollingWorker(QThread):
     # ------------------------------------------------------------------
     # Initialization
     # ------------------------------------------------------------------
-    def __init__(self, meter, interval_sec: float = 1.0):
+    def __init__(self, meter, interval_sec: float = 0.25):
         """
         Initialize the polling worker.
 
@@ -85,7 +85,7 @@ class MeterPollingWorker(QThread):
             - read_all()
 
         interval_sec : float, optional
-            Polling interval in seconds (default: 1.0).
+            Polling interval in seconds (default: 0.25).
         """
         super().__init__()
         self.meter = meter
