@@ -18,7 +18,6 @@ import os
 from typing import List, Dict, Tuple, Any
 from .test_strategy import TestStrategy
 from smr_acceptance_engine import SMRAcceptanceEngine
-from smr_excel_report import generate_smr_excel_report
 from smr_submission_report import generate_smr_submission_excel
 
 class SMRStrategy(TestStrategy):
@@ -106,25 +105,21 @@ class SMRStrategy(TestStrategy):
         engine = SMRAcceptanceEngine(rows)
         return engine.evaluate()
 
-    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> str:
+    def generate_reports(
+        self,
+        rows: List[Dict[str, Any]],
+        output_dir: str,
+        prefix: str,
+        serial: str | None = None,
+    ) -> str:
         """
-        Generates SMR-specific Excel reports.
-        1. Result Report (Engineering/Validation)
-        2. Submission Report (Clean)
+        Generates SMR submission report (single file). Saves into a type-specific subfolder
+        (SMR_SMPS, SMR_Telecom_RE, SMR_Telecom_Non-RE) under output_dir; no user-named subfolder.
         """
-        # Detect SMR module type so we can route reports into
-        # a type-specific subfolder under the base output directory.
-        #
-        # Types (from SMRAcceptanceEngine):
-        # - "SMR_SMPS"
-        # - "SMR_Telecom_RE"
-        # - "SMR_Telecom_Non-RE"
         engine = SMRAcceptanceEngine(rows)
-        _ = engine.evaluate()  # Ensures type detection and internal state are populated
+        _ = engine.evaluate()  # Populates module_type
         module_type = getattr(engine, "module_type", "SMR_SMPS")
 
-        # Map detected type to folder name. Folder names are kept identical
-        # to the internal type identifiers for traceability.
         type_folder_map = {
             "SMR_SMPS": "SMR_SMPS",
             "SMR_Telecom_RE": "SMR_Telecom_RE",
@@ -132,19 +127,11 @@ class SMRStrategy(TestStrategy):
         }
         type_folder = type_folder_map.get(module_type, module_type)
 
-        #   <base_reports_dir>/<type_folder>/<date_or_user_named_folder>
-        base_reports_dir = os.path.dirname(output_dir)
-        report_folder = os.path.basename(output_dir)
-
-        final_output_dir = os.path.join(base_reports_dir, type_folder, report_folder)
+        final_output_dir = os.path.join(output_dir, type_folder)
         os.makedirs(final_output_dir, exist_ok=True)
 
-        res_path = os.path.join(final_output_dir, f"{prefix}_SMR_RESULT.xlsx")
         sub_path = os.path.join(final_output_dir, f"{prefix}_SMR_SUBMISSION.xlsx")
-
-        # Serial number = export folder name (name user enters when saving)
-        serial = report_folder
-        generate_smr_excel_report(rows, res_path)
-        generate_smr_submission_excel(rows, sub_path, serial_number=serial)
+        serial_number = serial if serial is not None else prefix
+        generate_smr_submission_excel(rows, sub_path, serial_number=serial_number)
 
         return final_output_dir

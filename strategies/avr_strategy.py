@@ -19,7 +19,6 @@ import os
 from typing import List, Dict, Tuple, Any
 from .test_strategy import TestStrategy
 from avr_acceptance_engine import AVRAcceptanceEngine, RATED_OUTPUT_VOLTAGE
-from avr_excel_report import generate_avr_excel_report
 from avr_submission_report import generate_avr_submission_excel
 
 class AVRStrategy(TestStrategy):
@@ -110,21 +109,21 @@ class AVRStrategy(TestStrategy):
         engine = AVRAcceptanceEngine(rows)
         return engine.evaluate()
 
-    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> str:
+    def generate_reports(
+        self,
+        rows: List[Dict[str, Any]],
+        output_dir: str,
+        prefix: str,
+        serial: str | None = None,
+    ) -> str:
         """
-        Generates AVR reports. Accepts any number of readings.
+        Generates AVR submission report (single file). Writes to output_dir; no subfolder created.
         """
         if len(rows) == 0:
             raise ValueError("AVR Reports require at least 1 row")
 
-        os.makedirs(output_dir, exist_ok=True)
-
-        eng_path = os.path.join(output_dir, f"{prefix}_AVR_RESULT.xlsx")
         sub_path = os.path.join(output_dir, f"{prefix}_AVR_SUBMISSION.xlsx")
-
-        generate_avr_excel_report(rows, eng_path)
-        # Serial number = export folder name (name user enters when saving)
-        serial = os.path.basename(output_dir)
-        generate_avr_submission_excel(rows, sub_path, serial_number=serial)
+        serial_number = serial if serial is not None else prefix
+        generate_avr_submission_excel(rows, sub_path, serial_number=serial_number)
 
         return output_dir

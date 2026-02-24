@@ -594,44 +594,44 @@ class MainWindow(QMainWindow):
             rows.append(row_data)
 
         # 2. Prepare Filename Prefix
-        # Example: AVR_TEST_20231025_143000
+        # Example: AVR_20231025_143000
         prefix = f"{self.current_strategy.name.split()[0]}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        # 3. Ask for specific folder name (Optional, keeps organized)
-        # UI is responsible only for selecting the base directory and a folder name.
-        # Each strategy is responsible for creating any required directories.
+
+        # 3. Ask for name for this test (used as serial in report; no subfolder is created)
         folder_name, ok = QInputDialog.getText(
             self,
-            "Export Folder Name",
-            "Enter folder name for this test:",
+            "Export",
+            "Enter name for this test:",
             text=prefix,
         )
         if not ok or not folder_name.strip():
-            self.statusbar.showMessage("Export cancelled (no folder name)")
+            self.statusbar.showMessage("Export cancelled (no name entered)")
             return
-        export_dir = os.path.join(base_dir, folder_name.strip())
+        # Save directly to base directory; pass user's name as serial for the report
+        export_dir = base_dir
+        serial = folder_name.strip()
 
         # 4. Delegate to Strategy
         try:
-            actual_dir = self.current_strategy.generate_reports(rows, export_dir, prefix)
+            actual_dir = self.current_strategy.generate_reports(rows, export_dir, prefix, serial=serial)
 
-            msg = f"{self.current_strategy.name} reports generated successfully"
+            msg = f"{self.current_strategy.name} report generated successfully"
             QMessageBox.information(
                 self,
                 "Success",
                 f"{msg}:\n\n{actual_dir}"
             )
-            self.statusbar.showMessage("Reports generated")
+            self.statusbar.showMessage("Report generated")
             self.logger.info(f"Reports generated at {actual_dir}") 
 
-        except Exception:
+        except Exception as e:
             # The exception is logged with full traceback for debugging,
             # while the UI shows a concise error message to the user.
             self.logger.error("Export failed while generating reports", exc_info=True)
             QMessageBox.critical(
                 self,
                 "Export Failed",
-                f"Failed to generate reports:\n\n{e}"
+                f"Failed to generate report:\n\n{e}"
             )
 
     def open_reports_folder(self):

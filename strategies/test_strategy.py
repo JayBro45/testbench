@@ -95,13 +95,20 @@ class TestStrategy(ABC):
         pass
 
     @abstractmethod
-    def generate_reports(self, rows: List[Dict[str, Any]], output_dir: str, prefix: str) -> str:
+    def generate_reports(
+        self,
+        rows: List[Dict[str, Any]],
+        output_dir: str,
+        prefix: str,
+        serial: str | None = None,
+    ) -> str:
         """
         Generates the specific Excel reports for this test mode.
 
         :param rows: The data rows to report.
-        :param output_dir: The directory base where files should be saved.
-        :param prefix: A timestamp/identifier prefix for the filenames.
-        :return: The actual directory path where reports were written.
+        :param output_dir: The directory where the file should be saved.
+        :param prefix: A timestamp/identifier prefix for the filename.
+        :param serial: Optional name from the user (e.g. from dialog), used as serial in the report.
+        :return: The directory path where the report was written.
         """
         pass

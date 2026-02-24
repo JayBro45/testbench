@@ -49,10 +49,10 @@ The main window is divided into four sections. Work through them in order.
 4. Export Report
   - Location — Shows the default export folder (set in Configuration → Settings). You cannot type here; change it in Settings.
   - EXPORT EXCEL — Generates Excel report(s) from the current grid data:
-    1. The app will ask for a folder name for this test (a default name is suggested).
-    2. Reports are created inside the default export directory, in a subfolder with that name.
-    3. For AVR: Result and Submission workbooks are generated.
-    4. For SMR: Result and Submission workbooks are generated in the same way.
+    1. The app will ask for a name for this test (a default is suggested); this name appears as the serial in the report.
+    2. A single submission workbook is generated (with pass/fail result at the bottom).
+    3. For AVR: The file is saved directly in the default export directory, e.g. AVR_YYYYMMDD_HHMMSS_AVR_SUBMISSION.xlsx.
+    4. For SMR: The file is saved in a type-specific subfolder (SMR_SMPS, SMR_Telecom_RE, or SMR_Telecom_Non-RE) under the export directory, e.g. <export_dir>\SMR_SMPS\SMR_YYYYMMDD_HHMMSS_SMR_SUBMISSION.xlsx.
 
   If the export location is not set or the folder does not exist, the app will ask you to set it in Settings.
 
@@ -134,7 +134,7 @@ Quick Reference
   Run the app           Double-click IPS_Testing_Software.exe.
   Start / stop test     Use START TEST / Stop in section 2.
   Record a reading      Click SAVE READING while the test is running.
-  Export to Excel       Fill the grid, then click EXPORT EXCEL and enter a folder name.
+  Export to Excel       Fill the grid, then click EXPORT EXCEL and enter a name for this test.
   Change export folder  Configuration → Settings → Default Export Directory.
   Change meter IP       Configuration → Settings → Meter IP Address.
 

@@ -28,6 +28,8 @@ from typing import List, Dict, Any
 
 import pandas as pd
 
+from smr_acceptance_engine import SMRAcceptanceEngine
+
 
 # =============================================================================
 # Public API
@@ -206,6 +208,37 @@ def generate_smr_submission_excel(
             worksheet.set_row(r, 14)        
             for c, val in enumerate(row):
                 worksheet.write(r, c, val, fmt_cell)
+
+        # ---------------------------------------------------------------------
+        # Result Summary Block (Pass/Fail, excluded from print area)
+        # ---------------------------------------------------------------------
+        engine = SMRAcceptanceEngine(grid_rows)
+        result = engine.evaluate()
+
+        start_row = 3 + total_data_rows + 2
+        num_cols = 12  # A-L
+
+        summary_lines = result.summary.count("\n") + 1
+        fmt_summary_pass = workbook.add_format({
+            "bg_color": "#90ee90",
+            "text_wrap": True,
+            "bold": True,
+            "font_name": "Times New Roman"
+        })
+        fmt_summary_fail = workbook.add_format({
+            "bg_color": "#FFCCCB",
+            "text_wrap": True,
+            "bold": True,
+            "font_name": "Times New Roman"
+        })
+        summary_format = fmt_summary_pass if result.passed else fmt_summary_fail
+        worksheet.merge_range(
+            start_row, 0,
+            start_row + summary_lines - 1,
+            num_cols - 1,
+            result.summary,
+            summary_format,
+        )
 
         # ---------------------------------------------------------------------
         # Print Settings (A4)

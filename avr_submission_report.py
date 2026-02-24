@@ -28,6 +28,8 @@ from typing import List, Dict
 
 import pandas as pd
 
+from avr_acceptance_engine import AVRAcceptanceEngine
+
 
 # =============================================================================
 # Public API
@@ -193,6 +195,45 @@ def generate_avr_submission_excel(
         # Larger row height for readability
         for r in range(3, last_data_row + 1):
             worksheet.set_row(r, 22)
+
+        # ---------------------------------------------------------------------
+        # Result Summary Block (Pass/Fail, excluded from print area)
+        # ---------------------------------------------------------------------
+        result = None
+        if len(grid_rows) >= 3:
+            engine = AVRAcceptanceEngine(grid_rows)
+            result = engine.evaluate()
+
+        start_row = last_data_row + 2
+        num_cols = 11  # A-K
+
+        if result is not None:
+            summary_lines = result.summary.count("\n") + 1
+            fmt_summary_pass = workbook.add_format({
+                "bg_color": "#90ee90",
+                "text_wrap": True,
+                "bold": True
+            })
+            fmt_summary_fail = workbook.add_format({
+                "bg_color": "#FFCCCB",
+                "text_wrap": True,
+                "bold": True
+            })
+            summary_format = fmt_summary_pass if result.passed else fmt_summary_fail
+            worksheet.merge_range(
+                start_row, 0,
+                start_row + summary_lines - 1,
+                num_cols - 1,
+                result.summary,
+                summary_format,
+            )
+        else:
+            note = "Data exported. Acceptance evaluation requires at least 3 readings."
+            fmt_note = workbook.add_format({"text_wrap": True})
+            worksheet.merge_range(
+                start_row, 0, start_row, num_cols - 1,
+                note, fmt_note
+            )
 
         # ---------------------------------------------------------------------
         # Print Settings (A4)

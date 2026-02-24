@@ -11,7 +11,7 @@ Industrial Test Bench application for **AVR** (Automatic Voltage Regulator) and 
 - **Dual test modes:** AVR (AC output) and SMR (DC output) with automatic hardware mode switching
 - **Live readings:** Real-time input/output values from the meter while a test is running
 - **Data grid:** Save multiple readings per test; clear or delete rows as needed
-- **Excel export:** Generate result and submission workbooks (AVR- or SMR-specific) to a configurable folder
+- **Excel export:** Generate asubmission workbook per test (AVR- or SMR-specific, with pass/fail result) to a configurable folder
 - **Configuration:** Default export directory, meter IP, and default test mode via **Configuration → Settings** or by editing `config.json`
 - **Mock mode:** Run without hardware by setting `meter.mock: true` in `config.json`
 
