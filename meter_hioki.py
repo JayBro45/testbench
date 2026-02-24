@@ -109,23 +109,22 @@ class HiokiPW3336:
             # Common
             "vin": 230.0,
             "iin": 5.0,
-            "kwin": 1.15 * 1000,   # W (exposed as kW via helpers)
+            "pin_watts": 1.15 * 1000,
             "vout": 230.0,
             "iout": 4.8,
-            "kwout": 1.10 * 1000,  # W (exposed as kW via helpers)
+            "pout_ac_watts": 1.10 * 1000,
+            "pout_dc_watts": 48.0 * 10.0,
             "efficiency": 95.0,
-            
             # AVR Specific
             "frequency": 50.0,
             "vthd_out": 3.5,
-            
             # SMR Specific
             "pf": 0.99,
-            "ripple": 0.05,
+            "ripple_raw": 0.05,
             "vthd_in": 2.5,
             "ithd_in": 3.0,
             "vout_dc": 48.0,
-            "iout_dc": 10.0
+            "iout_dc": 10.0,
         }
 
     # ------------------------------------------------------------------

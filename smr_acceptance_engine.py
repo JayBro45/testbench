@@ -405,15 +405,21 @@ class SMRAcceptanceEngine:
         for k, rows in self.invalid_dict.items():
             if rows: lines.append(f"Invalid {k} in rows: {', '.join(rows)}")
         for k, rows in self.abnormal_dict.items():
-             if rows and isinstance(rows, tuple):
-                 lines.append(f"Abnormal {k} in rows: {', '.join(rows)}")
-        
+            if rows and isinstance(rows, tuple):
+                lines.append(f"Abnormal {k} in rows: {', '.join(rows)}")
+
         passed = not any(self.invalid_dict.values())
         lines.append(f"RESULT: {'PASS' if passed else 'FAIL'}")
+
+        # Contract: abnormal_cells must be Dict[str, Tuple[str, ...]] for report layer
+        abnormal_cells = {
+            k: v for k, v in self.abnormal_dict.items()
+            if isinstance(v, tuple)
+        }
 
         return SMRResult(
             passed=passed,
             summary="\n".join(lines),
             invalid_cells=self.invalid_dict,
-            abnormal_cells=self.abnormal_dict
+            abnormal_cells=abnormal_cells,
         )

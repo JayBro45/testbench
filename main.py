@@ -70,6 +70,7 @@ def main():
     )
     if app_font.pointSize() <= 0:
         pixel_size = app_font.pixelSize()
+        dpi = "n/a"
         if pixel_size > 0:
             screen = app.primaryScreen()
             dpi = screen.logicalDotsPerInch() if screen else 96
@@ -81,7 +82,7 @@ def main():
         logger.debug(
             "Normalized app font point size: point_size=%s dpi=%s",
             point_size,
-            dpi if pixel_size > 0 else "n/a",
+            dpi,
         )
 
     # Create and show main window
